@@ -5,9 +5,10 @@
                      racket/struct-info
                      syntax/id-table))
 (provide setf!
-         update!
-         incr!
-         push!)
+         updatef!
+         incrf!
+         pushf!
+         declare-struct-setf)
 
 ;; Limitations:
 ;; - Won't work with contracts.
@@ -94,18 +95,18 @@
     [(_ l:lvalue e:expr)
      #'(#%plain-app l.setter e)]))
 
-(define-syntax update!
+(define-syntax updatef!
   (syntax-parser
     [(_ l:lvalue e:expr)
      #'(#%plain-app l.updater e)]))
 
-(define-syntax incr!
+(define-syntax incrf!
   (syntax-parser
     [(_ loc:expr (~optional amt))
      #:declare amt (expr/c #'number?)
      #'(update! loc (~? (lambda (v) (+ v amt.c)) add1))]))
 
-(define-syntax-rule (push! loc v)
+(define-syntax-rule (pushf! loc v)
   (update! loc (lambda (vs) (cons v vs))))
 
 (define-syntax declare-setf
