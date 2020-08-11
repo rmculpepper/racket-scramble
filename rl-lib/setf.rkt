@@ -87,6 +87,8 @@
 
   (free-id-table-set! getters #'unbox (make-setter 1 #'set-box!))
   (free-id-table-set! getters #'vector-ref (make-setter 2 #'vector-set!))
+  (free-id-table-set! getters #'string-ref (make-setter 2 #'string-set!))
+  (free-id-table-set! getters #'bytes-ref (make-setter 2 #'bytes-set!))
   (free-id-table-set! getters #'hash-ref (make-hashlike-setter #'hash-set! #'hash-update!))
   (void))
 
