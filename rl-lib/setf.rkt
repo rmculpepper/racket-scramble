@@ -29,28 +29,31 @@
   (define ((make-setter arity setter-id) ostx getter-id mode args)
     (unless (= arity (length args))
       (raise-syntax-error #f "wrong number of arguments" ostx))
-    (case mode
-      [(set)
-       #`(lambda (v) (#,setter-id #,@args v))]
-      [(update)
-       (with-syntax ([(arg ...) args]
-                     [(tmp ...) (generate-temporaries args)])
-         #`(lambda (f)
-             (let ([tmp arg] ...)
-               (#,setter-id tmp ... (f (#,getter-id tmp ...))))))]))
+    (with-syntax ([setter setter-id]
+                  [getter getter-id]
+                  [(arg ...) args]
+                  [(tmp ...) (generate-temporaries args)])
+      (case mode
+        [(set)
+         #'(let ([tmp arg] ...) (lambda (v) (setter tmp ... v)))]
+        [(update)
+         #'(let ([tmp arg] ...) (lambda (f) (setter tmp ... (f (getter tmp ...)))))])))
 
   (define ((make-hashlike-setter setter-id updater-id) ostx getter-id mode args)
     (case mode
       [(set)
        (unless (= 2 (length args))
          (raise-syntax-error #f "wrong number of arguments" ostx))
-       #`(lambda (v) (#,setter-id #,@args v))]
+       (with-syntax ([(arg ...) args] [(tmp ...) (generate-temporaries args)])
+         #`(let ([tmp arg] ...) (lambda (v) (#,setter-id tmp ... v))))]
       [(update)
        (syntax-case args ()
          [(arg1 arg2)
-          #`(lambda (f) (#,updater-id arg1 arg2 f))]
+          #`(let ([tmp1 arg1] [tmp2 arg2])
+              (lambda (f) (#,updater-id tmp1 tmp2 f)))]
          [(arg1 arg2 arg3)
-          #`(lambda (f) (#,updater-id arg1 arg2 f arg3))]
+          #`(let ([tmp1 arg1] [tmp2 arg2] [tmp3 arg3])
+              (lambda (f) (#,updater-id tmp1 tmp2 f tmp3)))]
          [_ (raise-syntax-error #f "wrong number of arguments" ostx)])]))
 
   (define-syntax-class getter
@@ -106,10 +109,10 @@
   (syntax-parser
     [(_ loc:expr (~optional amt))
      #:declare amt (expr/c #'number?)
-     #'(update! loc (~? (lambda (v) (+ v amt.c)) add1))]))
+     #'(updatef! loc (~? (lambda (v) (+ v amt.c)) add1))]))
 
 (define-syntax-rule (pushf! loc v)
-  (update! loc (lambda (vs) (cons v vs))))
+  (updatef! loc (lambda (vs) (cons v vs))))
 
 (define-syntax declare-setf
   (syntax-parser
@@ -155,7 +158,14 @@
 (declare-struct-setf point3 #;#:include-super)
 
 (define p3 (point3 1 2 3))
+(setf! (point-x p3) 10)
+(setf! (point3-z p3) 30)
+p3
 
 (define b (box 0))
 (define bl (box null)) 
+(setf! (unbox b) 2)
+(pushf! (unbox bl) 'a)
+b
+bl
 |#
