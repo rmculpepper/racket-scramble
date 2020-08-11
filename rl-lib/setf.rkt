@@ -5,6 +5,7 @@
                      racket/struct-info
                      syntax/id-table))
 (provide setf!
+         psetf!
          updatef!
          incrf!
          pushf!
@@ -99,6 +100,13 @@
   (syntax-parser
     [(_ l:lvalue e:expr)
      #'(#%plain-app l.setter e)]))
+
+(define-syntax psetf!
+  (syntax-parser
+    [(_ (~seq l:lvalue e:expr) ...)
+     (with-syntax ([(ltmp ...) (generate-temporaries #'(l ...))]
+                   [(etmp ...) (generate-temporaries #'(e ...))])
+       #'(let ((~@ [ltmp l.setter] [etmp e]) ...) (ltmp etmp) ...))]))
 
 (define-syntax updatef!
   (syntax-parser
