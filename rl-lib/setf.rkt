@@ -5,9 +5,8 @@
                      racket/struct-info
                      syntax/id-table))
 (provide setf!
-         psetf!
          updatef!
-         incrf!
+         incr!
          pushf!
          declare-struct-setf)
 
@@ -86,6 +85,10 @@
                            [(set)    #'(lambda (v) (set! var v))]
                            [(update) #'(lambda (f) (set! var (f var)))])))
     (pattern (#%plain-app g:getter arg ...)
+             #:fail-when
+             (for/or ([subexpr (in-list (syntax->list #'(g arg ...)))])
+               (and (syntax-tainted? subexpr) subexpr))
+             "setf-able location is protected (would be tainted)"
              #:attr tx (lambda (ostx mode)
                          ((attribute g.tx) ostx #'g mode (syntax->list #'(arg ...))))))
 
@@ -101,6 +104,7 @@
     [(_ l:lvalue e:expr)
      #'(#%plain-app l.setter e)]))
 
+#;
 (define-syntax psetf!
   (syntax-parser
     [(_ (~seq l:lvalue e:expr) ...)
@@ -113,7 +117,7 @@
     [(_ l:lvalue e:expr)
      #'(#%plain-app l.updater e)]))
 
-(define-syntax incrf!
+(define-syntax incf!
   (syntax-parser
     [(_ loc:expr (~optional amt))
      #:declare amt (expr/c #'number?)
