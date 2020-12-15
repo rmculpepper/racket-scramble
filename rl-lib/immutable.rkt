@@ -2,50 +2,21 @@
 (require racket/generic)
 (provide immutable
          convertible-to-immutable?
+         gen:convertible-to-immutable
+
          mutable
-         convertible-to-mutable?)
+         convertible-to-mutable?
+         gen:convertible-to-mutable)
 
 ;; Note: mutable/immutable is a shallow property. For example, an immutable
 ;; vector might contain mutable strings; the vector is still considered
 ;; immutable.
 
 ;; This library does not convert between (immutable) pairs and mutable
-;; pairs. There are three reasons:
+;; pairs. There are two main reasons:
 ;; 1. The two types don't share an interface (eg, can't call car on a mpair).
 ;; 2. Converting only one pair would be useless; converting a list presents
 ;;    problems (eg improper or cyclic lists).
-;; 3. I never use mutable pairs, so I don't care.
-
-(module private-extension racket/base
-  (provide (protect-out (all-defined-out)))
-
-  (define extended-conversions-to-immutable null) ;; mutated
-  (define (register-conversion-to-immutable! pred convert)
-    (set! extended-conversions-to-immutable
-          (cons (cons pred convert) extended-conversions-to-immutable)))
-  (define (extended-convertible-to-immutable? v)
-    (for/or ([e (in-list extended-conversions-to-immutable)])
-      ((car e) v)))
-  (define (extended-convert-to-immutable v)
-    ((for/first ([e (in-list extended-conversions-to-immutable)] #:when (car e)) (cdr e)) v))
-
-  (define extended-conversions-to-mutable null) ;; mutated
-  (define (register-conversion-to-mutable! pred convert)
-    (set! extended-conversions-to-mutable
-          (cons (cons pred convert) extended-conversions-to-mutable)))
-  (define (extended-convertible-to-mutable? v)
-    (for/or ([e (in-list extended-conversions-to-mutable)])
-      ((car e) v)))
-  (define (extended-convert-to-mutable v [fresh? #t])
-    (define convert
-      (for/first ([e (in-list extended-conversions-to-mutable)] #:when (car e)) (cdr e)))
-    (convert v fresh?)))
-(require (submod "." private-extension))
-
-(module unsafe racket/base
-  (require (submod ".." private-extension))
-  (provide register-conversion-to-immutable!
-           register-conversion-to-mutable!))
 
 ;; ============================================================
 
@@ -145,4 +116,37 @@
   (mutable convertible-to-mutable [fresh?])
   #:defaults
   ([extended-convertible-to-mutable?
-    (define (mutable self [fresh? #t]) (extended-convert-to-mutable self #f))]))
+    (define (mutable self [fresh? #t]) (extended-convert-to-mutable self fresh?))]))
+
+;; ============================================================
+
+(module private-extension racket/base
+  (provide (protect-out (all-defined-out)))
+
+  (define extended-conversions-to-immutable null) ;; mutated
+  (define (register-conversion-to-immutable! pred convert)
+    (set! extended-conversions-to-immutable
+          (cons (cons pred convert) extended-conversions-to-immutable)))
+  (define (extended-convertible-to-immutable? v)
+    (for/or ([e (in-list extended-conversions-to-immutable)])
+      ((car e) v)))
+  (define (extended-convert-to-immutable v)
+    ((for/first ([e (in-list extended-conversions-to-immutable)] #:when (car e)) (cdr e)) v))
+
+  (define extended-conversions-to-mutable null) ;; mutated
+  (define (register-conversion-to-mutable! pred convert)
+    (set! extended-conversions-to-mutable
+          (cons (cons pred convert) extended-conversions-to-mutable)))
+  (define (extended-convertible-to-mutable? v)
+    (for/or ([e (in-list extended-conversions-to-mutable)])
+      ((car e) v)))
+  (define (extended-convert-to-mutable v [fresh? #t])
+    (define convert
+      (for/first ([e (in-list extended-conversions-to-mutable)] #:when (car e)) (cdr e)))
+    (convert v fresh?)))
+(require (submod "." private-extension))
+
+(module unsafe racket/base
+  (require (submod ".." private-extension))
+  (provide register-conversion-to-immutable!
+           register-conversion-to-mutable!))
