@@ -6,7 +6,7 @@
                      syntax/id-table))
 (provide setf!
          updatef!
-         incr!
+         incf!
          pushf!
          declare-struct-setf)
 
@@ -162,22 +162,22 @@
 
 ;; ========================================
 
-#|
-(struct point (x y) #:mutable #:transparent)
-(struct point3 point (z) #:mutable #:transparent)
+(module+ test
 
-(declare-struct-setf point)
-(declare-struct-setf point3 #;#:include-super)
+  (struct point (x y) #:mutable #:transparent)
+  (struct point3 point (z) #:mutable #:transparent)
 
-(define p3 (point3 1 2 3))
-(setf! (point-x p3) 10)
-(setf! (point3-z p3) 30)
-p3
+  (declare-struct-setf point)
+  (declare-struct-setf point3 #;#:include-super)
 
-(define b (box 0))
-(define bl (box null)) 
-(setf! (unbox b) 2)
-(pushf! (unbox bl) 'a)
-b
-bl
-|#
+  (define p3 (point3 1 2 3))
+  (setf! (point-x p3) 10)
+  (setf! (point3-z p3) 30)
+  p3
+
+  (define b (box 0))
+  (define bl (box null)) 
+  (setf! (unbox b) 2)
+  (pushf! (unbox bl) 'a)
+  b
+  bl)

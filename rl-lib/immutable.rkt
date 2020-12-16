@@ -1,12 +1,7 @@
 #lang racket/base
 (require racket/generic)
 (provide immutable
-         convertible-to-immutable?
-         gen:convertible-to-immutable
-
-         mutable
-         convertible-to-mutable?
-         gen:convertible-to-mutable)
+         mutable)
 
 ;; Note: mutable/immutable is a shallow property. For example, an immutable
 ;; vector might contain mutable strings; the vector is still considered
@@ -21,71 +16,73 @@
 ;; ============================================================
 
 ;; immutable : X -> Immutable-X
-;; If the argument is already immutable, just return it. That is, not guaranteed
-;; to get a fresh object.
+;; If the argument is already immutable (and not impersonated), just
+;; return it. That is, not guaranteed to get a fresh object.
+
+(define (vector->immutable-vector* v)
+  (if (immutable? v)
+      (if (impersonator? v)
+          (let ()
+            (define vv (make-vector (vector-length v)))
+            (vector-copy! vv 0 v 0)
+            (vector->immutable-vector vv))
+          v)
+      (vector->immutable-vector v)))
 
 (define (hash->immutable-hash h)
-  (cond [(immutable? h) h]
-        #;
+  (cond [(and (immutable? h) (not (impersonator? h))) h]
         [else
          (define init-h
-           (cond [(hash-eq? h) '#hasheq()]
-                 [(hash-eqv? h) '#hasheqv()]
-                 [(hash-equal? h) '#hash()]
+           (cond [(hash-eq? h) (hasheq)]
+                 [(hash-eqv? h) (hasheqv)]
+                 [(hash-equal? h) (hash)]
                  [else (error 'hash->immutable-hash "unknown hash type: ~e" h)]))
-         (for/fold ([hh init-h]) ([(k v) (in-hash h)]) (hash-set hh k v))]
-        [else
-         (define maker
-           (cond [(hash-eq? h) make-immutable-hasheq]
-                 [(hash-eqv? h) make-immutable-hasheqv]
-                 [(hash-equal? h) make-immutable-hash]
-                 [else (error 'hash->immutable-hash "unknown hash type: ~e" h)]))
-         (maker (for/list ([(k v) (in-hash h)]) (cons k v)))]))
+         (for/fold ([hh init-h]) ([(k v) (in-hash h)]) (hash-set hh k v))]))
 
 (define (box->immutable-box b)
-  (box-immutable (unbox b)))
+  (cond [(and (immutable? b) (not (impersonator? b))) b]
+        [else (box-immutable (unbox b))]))
 
 (define-generics convertible-to-immutable
   #:fast-defaults
   ([string?
-    (define immutable string->immutable-string)]
+    (define immutable-generic string->immutable-string)]
    [bytes?
-    (define immutable bytes->immutable-bytes)]
+    (define immutable-generic bytes->immutable-bytes)]
    [vector?
-    (define immutable vector->immutable-vector)]
+    (define immutable-generic vector->immutable-vector*)]
    [hash?
-    (define immutable hash->immutable-hash)]
+    (define immutable-generic hash->immutable-hash)]
    [box?
-    (define immutable box->immutable-box)])
+    (define immutable-generic box->immutable-box)])
   ;; Methods
-  (immutable convertible-to-immutable)
+  (immutable-generic convertible-to-immutable)
   #:defaults
   ([extended-convertible-to-immutable?
-    (define immutable extended-convert-to-immutable)]))
+    (define immutable-generic extended-convert-to-immutable)]))
 
 ;; ============================================================
 
-;; mutable : X [Boolean] -> Mutable-X
+;; mutable : X Boolean -> Mutable-X
 ;; Returns a mutable version of the argument. If fresh? is true, then shallow
 ;; mutatation of the result should not affect the argument. If fresh? is false
 ;; and the argument is mutable, it MAY simply return the argument.
 
-(define (string->mutable-string s [fresh? #t])
-  (if (or (immutable? s) fresh?) (string-copy s) s))
-(define (bytes->mutable-bytes s [fresh? #t])
-  (if (or (immutable? s) fresh?) (bytes-copy s) s))
-(define (vector->mutable-vector v [fresh? #t])
-  (if (or (immutable? v) fresh?)
+(define (string->mutable-string s fresh?)
+  (if (or fresh? (immutable? s)) (string-copy s) s))
+(define (bytes->mutable-bytes s fresh?)
+  (if (or fresh? (immutable? s)) (bytes-copy s) s))
+(define (vector->mutable-vector v fresh?)
+  (if (or fresh? (immutable? v) (impersonator? v))
       (let ([vv (make-vector (vector-length v))])
         (vector-copy! vv 0 v 0)
         vv)
       v))
-(define (box->mutable-box b [fresh? #t])
-  (if (or (immutable? b) fresh?) (box (unbox b)) b))
+(define (box->mutable-box b fresh?)
+  (if (or fresh? (immutable? b) (impersonator? b)) (box (unbox b)) b))
 
-(define (hash->mutable-hash h [fresh? #t])
-  (cond [(and (not (immutable? h)) (not fresh?)) h]
-        [else
+(define (hash->mutable-hash h fresh?)
+  (cond [(or fresh? (immutable? h) (impersonator? h))
          (define hh
            (cond [(hash-weak? h)
                   (cond [(hash-eq? h) (make-weak-hasheq)]
@@ -98,25 +95,45 @@
                         [(hash-equal? h) (make-hash)]
                         [else (error 'hash->mutable-hash "unknown hash type: ~e" h)])]))
          (for ([(k v) (in-hash h)]) (hash-set! hh k v))
-         hh]))
+         hh]
+        [else h]))
 
 (define-generics convertible-to-mutable
   #:fast-defaults
   ([string?
-    (define mutable string->mutable-string)]
+    (define mutable-generic string->mutable-string)]
    [bytes?
-    (define mutable bytes->mutable-bytes)]
+    (define mutable-generic bytes->mutable-bytes)]
    [vector?
-    (define mutable vector->mutable-vector)]
+    (define mutable-generic vector->mutable-vector)]
    [hash?
-    (define mutable hash->mutable-hash)]
+    (define mutable-generic hash->mutable-hash)]
    [box?
-    (define mutable box->mutable-box)])
+    (define mutable-generic box->mutable-box)])
   ;; Methods
-  (mutable convertible-to-mutable [fresh?])
+  (mutable-generic convertible-to-mutable [fresh?])
   #:defaults
   ([extended-convertible-to-mutable?
-    (define (mutable self [fresh? #t]) (extended-convert-to-mutable self fresh?))]))
+    (define (mutable-generic self fresh?) (extended-convert-to-mutable self fresh?))]))
+
+;; ============================================================
+
+(define (immutable v)
+  (immutable-generic v))
+
+(define (mutable v [fresh? #t])
+  (mutable-generic v fresh?))
+
+;; ============================================================
+
+(module+ generic
+  (provide immutable-generic
+           convertible-to-immutable?
+           gen:convertible-to-immutable
+
+           mutable-generic
+           convertible-to-mutable?
+           gen:convertible-to-mutable))
 
 ;; ============================================================
 
