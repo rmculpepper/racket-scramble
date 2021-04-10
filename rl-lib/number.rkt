@@ -62,5 +62,5 @@
   (+ n (modulo (- n) d)))
 
 (define (floor-multiple n d)
-  #;(* (floor-quotient n d) d)
+  #;(* (quotient n d) d)
   (- n (modulo n d)))
