@@ -1,6 +1,7 @@
 #lang racket/base
 (require (for-syntax racket/base syntax/parse)
          racket/class)
+(provide init-private)
 
 (define-syntax (init-private stx)
 
