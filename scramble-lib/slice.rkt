@@ -8,10 +8,10 @@
          vector-slice?
          (contract-out
           #:unprotected-submodule unchecked
-          [print-slice-contructor (parameter/c (listof (or/c #t #f 0 1)))]
+          [print-slice-constructor-modes (parameter/c (listof (or/c #t #f 0 1)))]
           [struct slice ([value (or/c bytes? string? vector? slice?)]
                          [start exact-nonnegative-integer?]
-                         [end exact-nonnegative-integer?])]
+                         [end (or/c exact-nonnegative-integer? #f)])]
           [slice-length
            (-> slice? any)]
           [slice-contents
@@ -21,15 +21,16 @@
           [string-slice->bytes/utf-8
            (-> string-slice? bytes?)]))
 
-(define print-slice-constructor (make-parameter '(0 1)))
+(define print-slice-constructor-modes (make-parameter '(0 1)))
 
 (struct slice (value start end)
-  #:guard (lambda (value start end _name)
+  #:guard (lambda (value start end0 _name)
             (define len
               (cond [(bytes? value) (bytes-length value)]
                     [(string? value) (string-length value)]
                     [(vector? value) (vector-length value)]
                     [(slice? value) (slice-length value)]))
+            (define end (or end0 len))
             (unless (<= start end len)
               (define what
                 (cond [(bytes? value) "bytes"]
@@ -40,9 +41,9 @@
             (let ([value (if (slice? value) (slice-value value) value)]
                   [offset (if (slice? value) (slice-start value) 0)])
               (cond [(= start end)
-                     (values (cond [(bytes? value) #""]
-                                   [(string? value) ""]
-                                   [(vector? value) #()])
+                     (values (cond [(bytes? value) (if (immutable? value) #"" (bytes))]
+                                   [(string? value) (if (immutable? value) "" (string))]
+                                   [(vector? value) (if (immutable? value) #() (vector))])
                              0 0)]
                     [else (values value (+ offset start) (+ offset end))])))
   #:property prop:custom-write
@@ -50,7 +51,7 @@
                  (lambda (self) 'slice)
                  (match-lambda [(slice value start end) (list value start end)]))])
     (lambda (self out mode)
-      (if (memv mode (print-slice-contructor-modes))
+      (if (memv mode (print-slice-constructor-modes))
           (writer self out mode)
           (case mode
             [(#f) (display (slice-contents self) out)]
@@ -61,16 +62,19 @@
 (define (slice-length s)
   (match s [(slice _ start end) (- end start)]))
 
-(define (slice-contents s)
+(define (slice-contents s [mut #f])
   (match s
     [(slice v start end)
-     (cond [(= start end) v] ;; relies on slice guard invariant
-           [(bytes? v) (subbytes v start end)]
-           [(string? v) (substring v start end)]
+     (define want-imm? (case mut [(mutable) #f] [(immutable) #t] [else (immutable? v)]))
+     (define (imm convert x) (if want-imm? (convert x) x))
+     (cond [(and (= start end) (eq? want-imm? (immutable? v)))
+            v] ;; relies on slice guard invariant
+           [(bytes? v) (imm bytes->immutable-bytes (subbytes v start end))]
+           [(string? v) (imm string->immutable-string (substring v start end))]
            [(vector? v)
             (define vec (make-vector (- end start)))
             (vector-copy! vec 0 v start end)
-            vec])]))
+            (imm vector->immutable-vector vec)])]))
 
 (define (string-slice? v)
   (and (slice? v) (string? (slice-value v))))

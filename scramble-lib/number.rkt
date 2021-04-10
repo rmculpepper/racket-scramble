@@ -23,11 +23,13 @@
 
 ;; Like min/max, but comparisons with infinities don't produce inexact.
 (define (min2 a b)
+  (define (nan? x) (= x +nan.0))
   (cond [(or (nan? a) (nan? b)) +nan.0]
         [(= a +inf.0) b]
         [(= b +inf.0) a]
         [else (min a b)]))
 (define (max2 a b)
+  (define (nan? x) (= x +nan.0))
   (cond [(or (nan? a) (nan? b)) +nan.0]
         [(= a -inf.0) b]
         [(= b -inf.0) a]
@@ -37,12 +39,12 @@
   (case-lambda
     [() +inf.0]
     [(x y) (min2 x y)]
-    [(x . xs) (foldl min2+ x xs)]))
+    [(x . xs) (foldl min2 x xs)]))
 (define max*
   (case-lambda
     [() -inf.0]
     [(x y) (max2 x y)]
-    [(x . xs) (foldl max2+ x xs)]))
+    [(x . xs) (foldl max2 x xs)]))
 
 ;; ----------------------------------------
 ;; Division and multiples
