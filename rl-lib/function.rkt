@@ -1,6 +1,6 @@
 #lang racket/base
 (require (submod racket/performance-hint begin-encourage-inline))
-(provide K0 K1 K K* call call*)
+(provide K0 K call)
 
 ;; ----------------------------------------
 ;; Creating constant functions
@@ -25,13 +25,6 @@
       [(v) (lambda x v)]
       [vs  (lambda x (apply values vs))])))
 
-;; result accepts any args, any keywords
-(define (K* . vs)
-  (define proc (apply K vs))
-  (make-keyword-procedure 
-   (lambda (kws kwargs . x) (proc))
-   proc))
-
 ;; ----------------------------------------
 ;; (call f x ...) = (f x ...)
 
@@ -41,8 +34,3 @@
       [(f) (f)]
       [(f x) (f x)]
       [(f . xs) (apply f xs)])))
-
-(define call*
-  (make-keyword-procedure
-   (lambda (kws kwargs f . xs) (keyword-apply f kws kwargs xs))
-   call))
