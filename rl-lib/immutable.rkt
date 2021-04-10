@@ -15,7 +15,7 @@
 
 ;; ============================================================
 
-;; immutable : X -> Immutable-X
+;; immutable : X -> Immutable-NotImpersonated-X
 ;; If the argument is already immutable (and not impersonated), just
 ;; return it. That is, not guaranteed to get a fresh object.
 
@@ -57,13 +57,15 @@
     (define immutable-generic box->immutable-box)])
   ;; Methods
   (immutable-generic convertible-to-immutable)
+  #|
   #:defaults
   ([extended-convertible-to-immutable?
-    (define immutable-generic extended-convert-to-immutable)]))
+    (define immutable-generic extended-convert-to-immutable)])
+  |#)
 
 ;; ============================================================
 
-;; mutable : X Boolean -> Mutable-X
+;; mutable : X Boolean -> Mutable-NotImpersonated-X
 ;; Returns a mutable version of the argument. If fresh? is true, then shallow
 ;; mutatation of the result should not affect the argument. If fresh? is false
 ;; and the argument is mutable, it MAY simply return the argument.
@@ -112,9 +114,11 @@
     (define mutable-generic box->mutable-box)])
   ;; Methods
   (mutable-generic convertible-to-mutable [fresh?])
+  #|
   #:defaults
   ([extended-convertible-to-mutable?
-    (define (mutable-generic self fresh?) (extended-convert-to-mutable self fresh?))]))
+    (define (mutable-generic self fresh?) (extended-convert-to-mutable self fresh?))])
+  |#)
 
 ;; ============================================================
 
@@ -137,6 +141,7 @@
 
 ;; ============================================================
 
+#|
 (module private-extension racket/base
   (provide (protect-out (all-defined-out)))
 
@@ -162,8 +167,4 @@
       (for/first ([e (in-list extended-conversions-to-mutable)] #:when (car e)) (cdr e)))
     (convert v fresh?)))
 (require (submod "." private-extension))
-
-(module unsafe racket/base
-  (require (submod ".." private-extension))
-  (provide register-conversion-to-immutable!
-           register-conversion-to-mutable!))
+|#
