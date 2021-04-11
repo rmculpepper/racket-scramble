@@ -1,3 +1,6 @@
+;; Copyright 2020-2021 Ryan Culpepper
+;; Licensed under the Apache License, Version 2.0
+
 #lang racket/base
 (require (submod racket/performance-hint begin-encourage-inline))
 (provide K0 K call)

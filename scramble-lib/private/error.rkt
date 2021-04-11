@@ -1,3 +1,6 @@
+;; Copyright 2020 Ryan Culpepper
+;; Licensed under the Apache License, Version 2.0
+
 #lang racket/base
 (provide raise-kw-argument-error)
 
