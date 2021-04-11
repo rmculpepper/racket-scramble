@@ -232,10 +232,12 @@ result.
 (ceiling-quotient 7 4)
 (ceiling-quotient 8 4)
 (ceiling-quotient 9 4)
+@;{
 (code:comment "on negative numbers")
 (ceiling-quotient -6 5)
 (ceiling-quotient -5 5)
 (ceiling-quotient -4 5)
+}
 ]}
 
 @defproc[(ceiling-multiple [n exact-integer?] [d exact-positive-integer?])
@@ -249,28 +251,24 @@ Equivalent to @racket[(* d (ceiling-quotient n d))].
 (ceiling-multiple 7 4)
 (ceiling-multiple 8 4)
 (ceiling-multiple 9 4)
+@;{
 (code:comment "on negative numbers")
 (ceiling-multiple -6 5)
 (ceiling-multiple -5 5)
 (ceiling-multiple -4 5)
+}
 ]}
 
+@deftogether[[
+@defproc[(floor-quotient [n exact-integer?] [d exact-positive-integer?])
+         exact-integer?]
 @defproc[(floor-multiple [n exact-integer?] [d exact-positive-integer?])
-         exact-integer?]{
+         exact-integer?]
+]]{
 
-Returns the greatest multiple of @racket[d] less than or equal to @racket[n].
-
-Equivalent to @racket[(* d (quotient n d))].
-
-@examples[#:eval the-eval
-(floor-multiple 7 4)
-(floor-multiple 8 4)
-(floor-multiple 9 4)
-(code:comment "on negative numbers")
-(floor-multiple -6 5)
-(floor-multiple -5 5)
-(floor-multiple -4 5)
-]}
+Equivalent to @racket[(floor (/ n d))] and @racket[(* d (floor-quotient n d))],
+respectively.
+}
 
 
 @; ----------------------------------------

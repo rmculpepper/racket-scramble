@@ -14,6 +14,8 @@
            (-> exact-integer? exact-positive-integer? exact-integer?)]
           [ceiling-multiple
            (-> exact-integer? exact-positive-integer? exact-integer?)]
+          [floor-quotient
+           (-> exact-integer? exact-positive-integer? exact-integer?)]
           [floor-multiple
            (-> exact-integer? exact-positive-integer? exact-integer?)]
           ))
@@ -57,11 +59,16 @@
 
 (define (ceiling-quotient n d)
   #;(ceiling (/ n d))
-  (quotient (+ n d -1) d))
+  (if (< n 0)
+      (quotient n d)
+      (quotient (+ n d -1) d)))
 
 (define (ceiling-multiple n d)
   #;(* (ceiling-quotient n d) d)
   (+ n (modulo (- n) d)))
+
+(define (floor-quotient n d)
+  (- (ceiling-quotient (- n) d)))
 
 (define (floor-multiple n d)
   #;(* (quotient n d) d)
