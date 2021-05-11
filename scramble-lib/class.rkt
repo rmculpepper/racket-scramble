@@ -4,11 +4,13 @@
 #lang racket/base
 (require (for-syntax racket/base syntax/parse)
          racket/class
-         racket/struct)
+         racket/struct
+         "about.rkt")
 (provide init-private
          constructor-style-printable<%>
          print-quotable-always<%>
-         print-quotable-never<%>)
+         print-quotable-never<%>
+         about<%>)
 
 (define-syntax (init-private stx)
 
@@ -75,3 +77,9 @@
 
 (define print-quotable-never<%>
   (interface* () ([prop:custom-print-quotable 'never])))
+
+;; ----------------------------------------
+
+(define about<%>
+  (interface* () ([prop:about (lambda (self) (send self about))])
+    about))
