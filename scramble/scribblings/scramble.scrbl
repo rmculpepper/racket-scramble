@@ -599,5 +599,10 @@ include the size of fixnums, the operating system, path conventions, and so on.
 On Racket CS, these features might not change, but beware of cross-compilation.
 }
 
+
+@; ----------------------------------------
+
+@include-section["struct-info.scrbl"]
+
 @; ----------------------------------------
 @(close-eval the-eval)
