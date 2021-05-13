@@ -542,7 +542,7 @@ bob
 
 This interface contains no methods. It attaches the
 @racket[prop:custom-print-quotable] property to objects, with the value
-@racket['always].
+@racket['never].
 
 @examples[#:eval the-eval
 (define expressive-person%
