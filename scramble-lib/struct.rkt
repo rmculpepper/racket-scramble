@@ -18,7 +18,6 @@
 ;; ============================================================
 ;; Based on FastHash, but with several adjustments, including
 ;; - truncated constants and intermediates to Racket fixnums
-;; - fixed initial seeds
 ;; - update function extrapolated from original's string processing
 ;;   - Note: compared to the original (string) function, this loses an
 ;;     ingredient: the length of the input. The prop:auto-equal+hash wrapper
@@ -68,11 +67,12 @@
   ;; S (State) = Fixnum
   ;; C (Code)  = Fixnum
 
-  ;; fh-init : -> S
-  (define (fh-init) 1)
+  (define init1 (->fx (random (expt 2 24))))
+  (define init2 (->fx (random (expt 2 24))))
 
-  ;; fh-init2 : -> S
-  (define (fh-init2) -1)
+  ;; fh-init{,2} : -> S
+  (define (fh-init) init1)
+  (define (fh-init2) init2)
 
   ;; fh-update : S C -> S
   (define (fh-update h v)

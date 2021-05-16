@@ -23,6 +23,10 @@ the struct type's fields. If the property value is a list, then the equality
 predicate and hash code functions use only the fields with the indexes in the
 list.
 
+In addition to the indicated fields, the hash code function also depends on a
+random seed and the name of the struct type. A new random seed is generated for
+each instantiation of the @racketmodname[scramble/struct] module.
+
 If @racket[prop:auto-equal+hash] is attached to a struct type that has a super
 struct type, then the super struct type must also have the
 @racket[prop:auto-equal+hash], and the new equality and hash code functions
@@ -39,8 +43,8 @@ extend the super type's functions. If the super struct type does not have the
 
 In the following example, the equality and hash code functions of the
 @racket[point3] struct type use only the @racket[z] field out of
-@racket[point3]'s fields, disregarding the @racket[color] field, but also use
-both of @racket[point]'s fields.
+@racket[point3]'s fields, disregarding the @racket[color] field, but they also
+use both of @racket[point]'s fields.
 
 @examples[#:eval the-eval #:label #f
 (struct point3 point (z color)
