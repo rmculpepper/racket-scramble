@@ -49,7 +49,7 @@
          #f]))
 
 (define (box-evt-ready? be)
-  (and (sync/timeout (semaphore-peek-evt (box-evt-rsema be))) #t))
+  (and (sync/timeout 0 (semaphore-peek-evt (box-evt-rsema be))) #t))
 
 #;
 (module* atomic-box-evt #f
