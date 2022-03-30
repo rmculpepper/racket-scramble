@@ -27,6 +27,7 @@
 @include-section["immutable.scrbl"]
 @include-section["list.scrbl"]
 @include-section["number.scrbl"]
+@include-section["result.scrbl"]
 @include-section["slice.scrbl"]
 @include-section["struct.scrbl"]
 
