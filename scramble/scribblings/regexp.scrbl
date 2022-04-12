@@ -129,13 +129,33 @@ within a higher-precedence operator. For example:
 
 @defform[(px part-RE ...)]{
 
-Converts the given @svar[RE] formed by @racket[(cat part-RE ...)] into a
+Converts the @svar[RE] formed by @racket[(cat part-RE ...)] into a
 @racket[pregexp] literal.
 
 The generation of the @racket[pregexp] literal takes precedence into account and
 inserts @litchar{(?:}@tt{_}@litchar{)} wrappers as necessary. For example:
 @examples[#:eval the-eval #:label #f
 (px (cat "A" (or "BB" "CCC")))
+]}
+
+@defform[(rx part-RE ...)]{
+
+Like @racket[px], but produces a @racket[regexp] literal instead. Not all
+@svar[RE] features can be expressed as a @racket[regexp]-style regular
+expression. For example, a @racket[repeat] @svar[RE] with custom bounds cannot
+be expressed if it contains a @racket[report] sub-@svar[RE]. If such a feature
+is used, a syntax error is raised. A syntax error is also raised if a character
+set has a range endpoint that is a special character such as @racket[#\-] or
+@racket[#\]]; it is possible to express such character sets in
+@racket[regexp]-style regular expressions, but this library currently does not
+support it.
+
+@examples[#:eval the-eval #:label #f
+(rx (cat "A" (or "BB" "CCC")))
+(rx (repeat (or "a" "b") 2 5))
+(eval:error (rx (repeat (report "a") 2 5)))
+(rx (repeat (report "a") 1 +inf.0))
+(rx (+ (chars alpha digit)))
 ]}
 
 @defform[(define-RE name rhs-RE)]{

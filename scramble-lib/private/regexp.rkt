@@ -87,134 +87,199 @@
 (module codegen racket/base
   (require racket/match
            racket/string
+           racket/syntax
+           (only-in racket/list make-list)
            (submod ".." ast)
            (rename-in data/integer-set [count iset:count] [foldr iset:foldr]))
   (provide (all-defined-out))
 
-  (define (emit-regexp re) ;; emits regexp
+  ;; Note: currently only pregexp generation is supported.  Conversion to regexp
+  ;; form is impossible for some REs due to (report _). For example:
+  ;;   (repeat (report "a") 2 +inf.0) != #rx"(a)(a)+"
+  ;; because the number of reports has changed (1 vs 2).
+
+  ;; Mode = 'px | 'rx | 'rx/no-report
+
+  (define (emit-px re) (emit-regexp 'px re))
+  (define (emit-rx re) (emit-regexp 'rx re))
+
+  (define (emit-regexp m re) ;; emits regexp
     (match re
       [(re:or res)
-       (string-join (map emit-regexp res) "|")]
+       (string-join (map (λ (re) (emit-regexp m re)) res) "|")]
       [(re:inject s)
        s]
-      [_ (emit-pces re #f)]))
+      [_ (emit-pces m re #f)]))
 
-  (define (emit-pces re [retry? #t]) ;; emits pces
+  (define (emit-pces m re [retry? #t]) ;; emits pces
     (match re
       [(re:cat res)
-       (string-join (map emit-pces res) "")]
-      [_ (emit-pce re retry?)]))
+       (string-join (map (λ (re) (emit-pces m re)) res) "")]
+      [_ (emit-pce m re retry?)]))
 
-  (define (emit-pce re [retry? #t]) ;; emits pce/repeat
+  (define (emit-pce m re [retry? #t]) ;; emits pce/repeat
     (match re
       [(re:repeat re 0 +inf.0)
-       (format "~a*" (nonempty (emit-atom re)))]
+       (format "~a*" (nonempty (emit-atom m re)))]
       [(re:repeat re 1 +inf.0)
-       (format "~a+" (nonempty (emit-atom re)))]
+       (format "~a+" (nonempty (emit-atom m re)))]
       [(re:repeat re 0 1)
-       (format "~a?" (nonempty (emit-atom re)))]
-      ;; -- pregexp --
-      [(re:repeat re n n)
-       (format "~a{~a}" (nonempty (emit-atom re)) n)]
-      [(re:repeat re n +inf.0)
-       (format "~a{~a,}" (nonempty (emit-atom re)) n)]
-      [(re:repeat re 0 n)
-       (format "~a{,~a}" (nonempty (emit-atom re)) n)]
-      [(re:repeat re m n)
-       (format "~a{~a,~a}" (nonempty (emit-atom re)) m n)]
-      ;; ----
-      [_ (emit-atom re retry?)]))
+       (format "~a?" (nonempty (emit-atom m re)))]
+      [_ (case m
+           [(px) ;; -- pregexp --
+            (match re
+              [(re:repeat re n n)
+               (format "~a{~a}" (nonempty (emit-atom m re)) n)]
+              [(re:repeat re n +inf.0)
+               (format "~a{~a,}" (nonempty (emit-atom m re)) n)]
+              [(re:repeat re 0 n)
+               (format "~a{,~a}" (nonempty (emit-atom m re)) n)]
+              [(re:repeat re n1 n2)
+               (format "~a{~a,~a}" (nonempty (emit-atom m re)) n1 n2)]
+              [_ (emit-atom m re retry?)])]
+           [else ;; -- regexp --
+            (define m 'rx/no-report)
+            (match re
+              [(re:repeat re n n)
+               (define s (nonempty (emit-atom m re)))
+               (string-join (make-list n s) "")]
+              [(re:repeat re n +inf.0)
+               (define s (nonempty (emit-atom m re)))
+               (format "~a~a*" (string-join (make-list n s) "") s)]
+              [(re:repeat re 0 n)
+               (define s (nonempty (emit-atom m re)))
+               (for/fold ([acc ""]) ([i (in-range n)])
+                 (format "(?:~a~a)?" s acc))]
+              [(re:repeat re n1 n2)
+               (define s (nonempty (emit-atom m re)))
+               (string-append
+                (string-join (make-list n1 s) "")
+                (for/fold ([acc ""]) ([i (in-range (- n2 n1))])
+                  (format "(?:~a~a)?" acc s)))]
+              [_ (emit-atom 'rx/no-report re retry?)])])]))
 
-  (define (emit-atom re [retry? #t]) ;; emits atom
+  (define (emit-atom m re [retry? #t]) ;; emits atom
     (match re
       [(re:report re)
-       (format "(~a)" (emit-regexp re))]
+       (case m
+         [(rx/no-report)
+          (wrong-syntax #f "cannot handle report inside of repeat with custom bounds")]
+         [else (format "(~a)" (emit-regexp m re))])]
       [(re:charset isetc)
-       (emit-charset isetc)]
+       (emit-charset m isetc)]
       [(re:^) "^"]
       [(re:$) "$"]
       [(re:mode (? string? modes) re)
-       (format "(?~a:~a)" modes (emit-regexp re))]
+       (format "(?~a:~a)" modes (emit-regexp m re))]
       [(? lookahead? look)
-       (emit-look look)]
+       (emit-look m look)]
       [(re:test tst re1 (re:cat '()))
-       (format "(?~a~a)" (emit-test tst) (emit-pces re1))]
+       (format "(?~a~a)" (emit-test m tst) (emit-pces m re1))]
       [(re:test tst re1 re2)
-       (format "(?~a~a|~a)" (emit-test tst) (emit-pces re1) (emit-pces re2))]
-      ;; -- pregexp --
-      [(re:matched? n)
-       (format "\\~a" n)]
-      [(re:uniprop #t prop)
-       (format "\\p{~a}" prop)]
-      [(re:uniprop #f prop)
-       (format "\\P{~a}" prop)]
-      ;; ----
+       (format "(?~a~a|~a)" (emit-test m tst) (emit-pces m re1) (emit-pces m re2))]
       [_
-       (if retry?
-           (format "(?:~a)" (emit-regexp re))
-           (error 'emit-atom "not an atom: ~e" re))]))
+       (case m
+         [(px) ;; -- pregexp --
+          (match re
+            [(re:matched? n)
+             (format "\\~a" n)]
+            [(re:uniprop #t prop)
+             (format "\\p{~a}" prop)]
+            [(re:uniprop #f prop)
+             (format "\\P{~a}" prop)]
+            ;; ----
+            [_ (emit-retry m re retry?)])]
+         [else ;; -- regexp --
+          (emit-retry m re retry?)])]))
 
-  (define (emit-look look)
+  (define (emit-retry m re retry?)
+    (if retry?
+        (format "(?:~a)" (emit-regexp m re))
+        (error 'emit-regexp "not supported: ~e" re)))
+
+  (define (emit-look m look)
     (match look
       [(look:match #t re)
-       (format "(?=~a)" (emit-regexp re))]
+       (format "(?=~a)" (emit-regexp m re))]
       [(look:match #f re)
-       (format "(?!~a)" (emit-regexp re))]
+       (format "(?!~a)" (emit-regexp m re))]
       [(look:match-preceding #t re)
-       (format "(?<=~a)" (emit-regexp re))]
+       (format "(?<=~a)" (emit-regexp m re))]
       [(look:match-preceding #f re)
-       (format "(?<!~a)" (emit-regexp re))]))
+       (format "(?<!~a)" (emit-regexp m re))]))
 
-  (define (emit-test tst)
+  (define (emit-test m tst)
     (match tst
       [(test:matched? n)
-       (format "(~a)" n)]
+       (case m
+         [(px) (format "(~a)" n)]
+         [else (error 'emit-regexp "not supported (test): ~e" tst)])]
       [(? lookahead? look)
-       (emit-look look)]))
+       (emit-look m look)]))
 
   (define (nonempty s)
     (if (equal? s "") "(?:)" s))
 
   ;; ------------------------------------------------------------
 
-  (define (emit-charset isetc)
+  (define (emit-charset m isetc)
     (define iset (make-integer-set isetc))
     (cond [(= (iset:count iset) 0) (error 'emit-charset "empty character set")]
-          [(= (iset:count iset) 1) (emit-ci (get-integer iset) #f)]
+          [(= (iset:count iset) 1) (emit-ci m (get-integer iset) #f)]
           [(iset=? iset allchars-iset) "."]
           ;; FIXME: do \p{prop} ??
           [else
            (define co-iset (subtract allchars-iset iset))
-           (define ps (emit-is iset))
-           (define co-ps (emit-is co-iset))
-           (cond [(< (string-length co-ps) (string-length ps))
+           (define ps (emit-is m iset))
+           (define co-ps (with-handlers ([exn:fail? (lambda (e) #f)])
+                           (emit-is m co-iset)))
+           (cond [(and co-ps (< (string-length co-ps) (string-length ps)))
                   (format "[^~a]" co-ps)]
                  [else (format "[~a]" ps)])]))
 
-  (define (emit-is is0)
+  (define (emit-is m is0)
     (define-values (is output)
-      (for/fold ([is is0] [acc null]) ([name (in-list posix-names)])
-        (define name-is (hash-ref posix-name=>iset name))
-        (cond [(subset? name-is is)
-               (values (subtract is name-is) (cons (format "[:~a:]" name) acc))]
-              [else (values is acc)])))
-    (string-append (string-join output "")
-                   (string-join (map emit-ivl (integer-set-contents is)) "")))
+      (case m
+        [(px)
+         (for/fold ([is is0] [acc null]) ([name (in-list posix-names)])
+           (define name-is (hash-ref posix-name=>iset name))
+           (cond [(subset? name-is is)
+                  (values (subtract is name-is) (cons (format "[:~a:]" name) acc))]
+                 [else (values is acc)]))]
+        [else (values is0 null)]))
+    (string-append
+     (string-join output "")
+     (string-join (map (λ (ivl) (emit-ivl m ivl)) (integer-set-contents is)) "")))
 
-  (define (emit-ivl ivl)
+  (define (emit-ivl m ivl)
     (match-define (cons lo hi) ivl)
-    (cond [(= lo hi) (emit-ci lo #t)]
-          [else (format "~a-~a" (emit-ci lo #t) (emit-ci hi #t))]))
+    (cond [(= lo hi) (emit-ci m lo #t)]
+          [(= hi (add1 lo)) (format "~a~a" (emit-ci m lo #t) (emit-ci m hi #t))]
+          [else (format "~a-~a" (emit-ci m lo #t) (emit-ci m hi #t))]))
 
-  (define (emit-ci ci in-range?)
+  (define (emit-ci m ci in-range?)
     (define c (integer->char ci))
-    (cond [(char:literal? c in-range?) (string c)]
-          [else (format "\\~a" (string c))]))
+    (cond [(char:literal? c m in-range?) (string c)]
+          [(or (not in-range?) (eq? m 'px)) (format "\\~a" (string c))]
+          [else
+           ;; I am not currently motivated to implement the bizarre rules for
+           ;; including special characters in regexp-style character sets.
+           (wrong-syntax #f "special character in regexp-style range~a\n  char: ~e"
+                         ";\n use `px` instead" ci)]))
 
-  ;; -- pregexp --
-  (define (char:literal? c in-range?)
-    (not (or (for/or ([badc (in-string "()*+?[]{}.^|\\")]) (eqv? c badc))
-             (and in-range? (for/or ([badc (in-string "-")]) (eqv? c badc))))))
+  (define (char:literal? c m in-range?)
+    (not (char:special? c m in-range?)))
+
+  (define (char:special? c m in-range?)
+    (define (in-string? s) (for/or ([badc (in-string s)]) (eqv? c badc)))
+    (cond [in-range?
+           (case m
+             [(px) (in-string? "[]-^\\")]
+             [else (in-string? "[]-^")])]
+          [else
+           (case m
+             [(px) (in-string? "()*+?[]{}.^|\\")]
+             [else (in-string? "()*+?[].^|\\")])]))
 
   (begin))
 
@@ -238,10 +303,13 @@
       (define px (RE-binding-px self))
       ((make-variable-like-transformer (datum->syntax id px)) id)))
 
-  (define (check-RE ast)
-    (define ps (emit-regexp ast))
-    (define px (pregexp ps (lambda (err) (wrong-syntax #f "~a\n  generated pregexp: ~a" err ps))))
-    (values ast px))
+  (define (check-RE m ast)
+    (define ((fail s) err)
+      (define what (case m [(px) 'pregexp] [else 'regexp]))
+      (wrong-syntax #f "~a\n  generated ~a: ~a" err what s))
+    (define s (emit-regexp m ast))
+    (define x (case m [(px) (pregexp s (fail s))] [else (regexp s (fail s))]))
+    (values ast x))
 
   (define-syntax-class RE
     #:attributes (ast)
