@@ -16,6 +16,8 @@
 
 @defmodule[scramble/regexp]
 
+@history[#:added "0.3"]
+
 This module works with the following S-expression representation of regular
 expressions. All literals in the grammar are recognized as symbols, not by
 binding.

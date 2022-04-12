@@ -10,6 +10,8 @@
 
 @defmodule[scramble/result]
 
+@history[#:added "0.3"]
+
 This module defines a @deftech{result} type. In general, a result is either
 @racket[ok] and carries a success value, or it is @racket[bad] and carries a
 value representing failure.
