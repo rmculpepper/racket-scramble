@@ -1,5 +1,5 @@
 ;; Copyright 2022 Ryan Culpepper
-;; Licensed under the Apache License, Version 2.0
+;; SPDX-License-Identifier: Apache-2.0
 
 #lang racket/base
 (require racket/match

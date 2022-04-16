@@ -1,5 +1,5 @@
 ;; Copyright 2020-2021 Ryan Culpepper
-;; Licensed under the Apache License, Version 2.0
+;; SPDX-License-Identifier: Apache-2.0
 
 #lang info
 
@@ -9,6 +9,7 @@
 (define collection "scramble")
 (define deps '("base"))
 (define pkg-authors '(ryanc))
+(define license 'Apache-2.0)
 
 ;; collection info
 
