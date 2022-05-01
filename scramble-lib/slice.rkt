@@ -40,7 +40,7 @@
                       [(string? value) "string"]
                       [(vector? value) "vector"]
                       [(slice? value) "slice"]))
-              (raise-range-error 'slice what "ending " end value start length 0))
+              (raise-range-error 'slice what "ending " end value start len 0))
             (let ([value (if (slice? value) (slice-value value) value)]
                   [offset (if (slice? value) (slice-start value) 0)])
               (cond [(= start end)
