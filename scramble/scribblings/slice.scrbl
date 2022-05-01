@@ -94,7 +94,7 @@ when the slice's underlying value is immutable.
 @deftogether[[
 @defproc[(bytes-slice->string/utf-8 [bs bytes-slice?] [err-char (or/c char? #f) #f])
          string?]
-@defproc[(string->bytes/utf-8 [ss string-slice?])
+@defproc[(string-slice->bytes/utf-8 [ss string-slice?])
          bytes?]
 ]]{
 
