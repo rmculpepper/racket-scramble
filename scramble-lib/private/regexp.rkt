@@ -86,6 +86,7 @@
 
 (module codegen racket/base
   (require racket/match
+           (only-in racket/list argmin)
            racket/string
            racket/syntax
            (only-in racket/list make-list)
@@ -229,27 +230,36 @@
           [(iset=? iset allchars-iset) "."]
           ;; FIXME: do \p{prop} ??
           [else
-           (define co-iset (subtract allchars-iset iset))
-           (define ps (emit-is m iset))
-           (define co-ps (with-handlers ([exn:fail? (lambda (e) #f)])
-                           (emit-is m co-iset)))
-           (cond [(and co-ps (< (string-length co-ps) (string-length ps)))
-                  (format "[^~a]" co-ps)]
-                 [else (format "[~a]" ps)])]))
+           (define alts
+             (append (emit-is-alts m iset "" #f)
+                     (emit-is-alts m (subtract allchars-iset iset) "^" #t)))
+           (format "[~a]" (argmin string-length alts))]))
 
-  (define (emit-is m is0)
-    (define-values (is output)
-      (case m
-        [(px)
-         (for/fold ([is is0] [acc null]) ([name (in-list posix-names)])
-           (define name-is (hash-ref posix-name=>iset name))
-           (cond [(subset? name-is is)
-                  (values (subtract is name-is) (cons (format "[:~a:]" name) acc))]
-                 [else (values is acc)]))]
-        [else (values is0 null)]))
-    (string-append
-     (string-join output "")
-     (string-join (map (λ (ivl) (emit-ivl m ivl)) (integer-set-contents is)) "")))
+  (define use-posix-classes? #f)
+
+  (define (emit-is-alts m is prefix catch?)
+    (define (base is prefix)
+      (with-handlers ([exn:fail? (lambda (e) (if catch? null (raise e)))])
+        (list (string-append prefix (emit-is m is)))))
+    (case m
+      [(px)
+       (cond [use-posix-classes?
+              (let loop ([names posix-names] [is is] [prefix prefix])
+                (match names
+                  [(cons name names)
+                   (define name-is (hash-ref posix-name=>iset name))
+                   (append (cond [(subset? name-is is)
+                                  (loop names
+                                        (subtract is name-is)
+                                        (format "~a[:~a:]" prefix name))]
+                                 [else null])
+                           (loop names is prefix))]
+                  ['() (base is prefix)]))]
+             [else (base is prefix)])]
+      [else (base is prefix)]))
+
+  (define (emit-is m is)
+    (string-join (map (λ (ivl) (emit-ivl m ivl)) (integer-set-contents is)) ""))
 
   (define (emit-ivl m ivl)
     (match-define (cons lo hi) ivl)
