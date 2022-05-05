@@ -46,6 +46,8 @@ In the following example, the equality and hash code functions of the
 @racket[point3]'s fields, disregarding the @racket[color] field, but they also
 use both of @racket[point]'s fields.
 
+@(cond [(eq? (system-type 'vm) 'chez-scheme) @list{
+
 @examples[#:eval the-eval #:label #f
 (struct point3 point (z color)
   #:property prop:auto-equal+hash (list (struct-field-index z)))
@@ -55,7 +57,11 @@ use both of @racket[point]'s fields.
         (point3 1 2 3 'red))
 (equal? (equal-hash-code (point3 1 2 3 #f))
         (equal-hash-code (point3 1 2 3 'red)))
-]}
+]
+
+}]
+       [else @elem{@emph{This example does not currently work on Racket BC.}}])
+}
 
 
 @; ----------------------------------------
