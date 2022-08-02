@@ -288,8 +288,8 @@
              [else (in-string? "[]-^")])]
           [else
            (case m
-             [(px) (in-string? "()*+?[]{}.^|\\")]
-             [else (in-string? "()*+?[].^|\\")])]))
+             [(px) (in-string? "()*+?[]{}.^$|\\")]
+             [else (in-string? "()*+?[].^$|\\")])]))
 
   (begin))
 

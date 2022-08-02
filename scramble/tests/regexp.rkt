@@ -38,3 +38,6 @@
        (check-equal? (px (chars [#\A #\Z])) #px"[A-Z]")
        (check-equal? (px (chars [#\A #\Z] "rst")) #px"[A-Zr-t]")
        (check-equal? (px (chars upper lower)) #px"[A-Za-z]")])
+
+(check-equal? (px "$") #px"\\$")
+(check-equal? (px (chars "$a")) #px"[$a]")
