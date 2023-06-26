@@ -2,8 +2,10 @@
 ;; SPDX-License-Identifier: Apache-2.0
 
 #lang racket/base
-(require racket/generic)
-(provide immutable
+(require racket/generic
+         (submod racket/performance-hint begin-encourage-inline))
+(provide immutable-authentic?
+         immutable
          mutable)
 
 ;; Note: mutable/immutable is a shallow property. For example, an immutable
@@ -16,9 +18,13 @@
 ;; 2. Converting only one pair would be useless; converting a list presents
 ;;    problems (eg improper or cyclic lists).
 
+(begin-encourage-inline
+  (define (immutable-authentic? x)
+    (and (immutable? x) (not (impersonator? x)))))
+
 ;; ============================================================
 
-;; immutable : X -> Immutable-NotImpersonated-X
+;; immutable : X -> Immutable-Authentic-X
 ;; If the argument is already immutable (and not impersonated), just
 ;; return it. That is, not guaranteed to get a fresh object.
 
@@ -35,11 +41,7 @@
 (define (hash->immutable-hash h)
   (cond [(and (immutable? h) (not (impersonator? h))) h]
         [else
-         (define init-h
-           (cond [(hash-eq? h) (hasheq)]
-                 [(hash-eqv? h) (hasheqv)]
-                 [(hash-equal? h) (hash)]
-                 [else (error 'hash->immutable-hash "unknown hash type: ~e" h)]))
+         (define init-h (hash-copy-clear h #:kind 'immutable))
          (for/fold ([hh init-h]) ([(k v) (in-hash h)]) (hash-set hh k v))]))
 
 (define (box->immutable-box b)
@@ -88,17 +90,7 @@
 
 (define (hash->mutable-hash h fresh?)
   (cond [(or fresh? (immutable? h) (impersonator? h))
-         (define hh
-           (cond [(hash-weak? h)
-                  (cond [(hash-eq? h) (make-weak-hasheq)]
-                        [(hash-eqv? h) (make-weak-hasheqv)]
-                        [(hash-equal? h) (make-weak-hash)]
-                        [else (error 'hash->mutable-hash "unknown hash type: ~e" h)])]
-                 [else
-                  (cond [(hash-eq? h) (make-hasheq)]
-                        [(hash-eqv? h) (make-hasheqv)]
-                        [(hash-equal? h) (make-hash)]
-                        [else (error 'hash->mutable-hash "unknown hash type: ~e" h)])]))
+         (define hh (hash-copy-clear h (if (immutable? h) 'mutable #f)))
          (for ([(k v) (in-hash h)]) (hash-set! hh k v))
          hh]
         [else h]))

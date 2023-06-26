@@ -11,7 +11,7 @@
 
 @defmodule[scramble/immutable]
 
-@defproc[(immutable [v any/c]) any/c]{
+@defproc[(immutable [v any/c]) immutable-authentic?]{
 
 Returns a value like @racket[v] that is shallowly immutable (see
 @racket[immutable?]). The argument must be a vector, string, or other type of
@@ -20,7 +20,7 @@ a mutable variant of pairs.)
 
 The result is immutable, and it is not an impersonator. If @racket[v] is a
 suitable result, it is returned as the result; that is, the result of the
-function may not be a fresh value.
+function might not be a fresh value.
 
 Note that if @racket[v] is impersonated, this function can raise an exception
 due to accessing @racket[v].
@@ -38,6 +38,11 @@ Note that if @racket[v] is impersonated, this function can raise an exception
 due to accessing @racket[v].
 }
 
+@defproc[(immutable-authentic? [v any/c])
+         boolean?]{
+
+Equivalent to @racket[(and (immutable? v) (not (impersonator? v)))].
+}
 
 @; ----------------------------------------
 @(close-eval the-eval)
