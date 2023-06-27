@@ -1,19 +1,5 @@
 #lang scribble/manual
-@(require scribble/example
-          (for-label racket/base racket/contract racket/class
-                     racket/function racket/shared racket/struct
-                     racket/require racket/symbol
-                     scramble/class
-                     scramble/cond
-                     scramble/function
-                     scramble/immutable
-                     scramble/list
-                     scramble/number
-                     scramble/slice
-                     scramble/about
-                     scramble/evt
-                     scramble/struct
-                     ))
+@(require scribble/example)
 
 @title{scramble: Assorted Utility Libraries}
 @author[@author+email["Ryan Culpepper" "ryanc@racket-lang.org"]]
@@ -22,6 +8,7 @@
 
 @include-section["about.scrbl"]
 @include-section["cond.scrbl"]
+@include-section["contract.scrbl"]
 @include-section["evt.scrbl"]
 @include-section["function.scrbl"]
 @include-section["immutable.scrbl"]
