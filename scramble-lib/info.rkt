@@ -5,7 +5,7 @@
 
 ;; pkg info
 
-(define version "0.3")
+(define version "0.4")
 (define collection "scramble")
 (define deps '("base"))
 (define pkg-authors '(ryanc))

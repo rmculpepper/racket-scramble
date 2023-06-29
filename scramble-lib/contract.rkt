@@ -7,7 +7,8 @@
 (provide vectorof/ic
          hash/ic
          string/ic
-         bytes/ic)
+         bytes/ic
+         convert/ic)
 
 ;; Like vectorof, hash/c, etc, but
 ;; - always produce an immutable value
@@ -97,3 +98,29 @@
            (string->immutable-string v)
            (raise-blame-error blame v #:missing-party missing-party
                               '(expected "string" given:) v))))))
+
+
+;; convert/ic : (X -> Y) -> Contract
+;; PRE: convert should be idempotent
+(define (convert/ic convert
+                    #:name [name '(convert/ic ....)]
+                    #:exn->lines [exn->lines default-exn->lines])
+  (define (raised->lines e)
+    (cond [(exn? e) (exn->lines e)]
+          [else (format "\n  raised by conversion: ~e" e)]))
+  (make-contract
+   #:name name
+   #:late-neg-projection
+   (lambda (blame)
+     (lambda (val missing-party)
+       (with-handlers ([(lambda (e) #t)
+                        (lambda (e)
+                          (raise-blame-error
+                           blame #:missing-party missing-party
+                           val
+                           '(expected: "~.s" given: "~e" "~a")
+                           name val (raised->lines e)))])
+         (convert val))))))
+
+(define (default-exn->lines e)
+  (format "\n  error: ~.a" (regexp-replace #rx"\n.*$" (exn-message e) "...")))
