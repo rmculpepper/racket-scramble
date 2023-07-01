@@ -47,6 +47,17 @@ If the original value is suitable, the contract projection returns it unchanged.
 (install! imm-vec)
 (eq? the-vector imm-vec)
 ]
+
+The value produced by a @racket[hash/ic] contract uses the same key comparison
+as the original value.
+
+@examples[#:eval the-eval #:label #f
+(define/contract hash-snapshot
+  (-> (hash/ic any/c any/c) any)
+  (lambda (h) h))
+(hash-snapshot (make-hasheqv '((1 . "one") (2 . two))))
+(hash-snapshot (hash '(1 2 3) 6 '(4 5) 9))
+]
 }
 
 
