@@ -83,6 +83,99 @@ Equivalent to @racket[(floor (/ n d))] and @racket[(* d (floor-quotient n d))],
 respectively.
 }
 
+@defproc[(string->integer [s string?]
+                          [#:min min-value real? -inf.0]
+                          [#:max max-value real? +inf.0])
+         (or/c exact-integer? #f)]{
+
+Returns the exact integer represented by @racket[s] if it is in the range
+[@racket[min-value], @racket[max-value]]; otherwise, returns @racket[#f].
+
+@examples[#:eval the-eval
+(string->integer "123" #:min 0 #:max 100)
+(string->integer "123" #:min 0 #:max 500)
+(code:line (string->integer "1e3") (code:comment "exponentials are not allowed"))
+(code:line (string->integer "#x10") (code:comment "radix markers are not allowed"))
+]
+
+@history[#:added "0.4"]}
+
+@deftogether[[
+@defthing[MIN-INT8   exact-integer? #:value (- (expt 2 7))]
+@defthing[MIN-INT16  exact-integer? #:value (- (expt 2 15))]
+@defthing[MIN-INT32  exact-integer? #:value (- (expt 2 31))]
+@defthing[MIN-INT64  exact-integer? #:value (- (expt 2 63))]
+@defthing[MIN-INT128 exact-integer? #:value (- (expt 2 127))]
+@defthing[MIN-INT256 exact-integer? #:value (- (expt 2 255))]
+]]{
+
+Minimum integer representable as signed (two's complement) in 8, 16, 32, 64,
+128, and 256 bits, respectively.
+
+@history[#:added "0.4"]
+}
+
+@deftogether[[
+@defthing[MAX-INT8   exact-integer? #:value (sub1 (expt 2 7))]
+@defthing[MAX-INT16  exact-integer? #:value (sub1 (expt 2 15))]
+@defthing[MAX-INT32  exact-integer? #:value (sub1 (expt 2 31))]
+@defthing[MAX-INT64  exact-integer? #:value (sub1 (expt 2 63))]
+@defthing[MAX-INT128 exact-integer? #:value (sub1 (expt 2 127))]
+@defthing[MAX-INT256 exact-integer? #:value (sub1 (expt 2 255))]
+]]{
+
+Maximum integer representable as signed (two's complement) in 8, 16, 32, 64,
+128, and 256 bits, respectively.
+
+@history[#:added "0.4"]
+}
+
+@deftogether[[
+@defthing[MAX-UINT8   exact-integer? #:value (sub1 (expt 2 16))]
+@defthing[MAX-UINT16  exact-integer? #:value (sub1 (expt 2 16))]
+@defthing[MAX-UINT32  exact-integer? #:value (sub1 (expt 2 32))]
+@defthing[MAX-UINT64  exact-integer? #:value (sub1 (expt 2 64))]
+@defthing[MAX-UINT128 exact-integer? #:value (sub1 (expt 2 128))]
+@defthing[MAX-UINT256 exact-integer? #:value (sub1 (expt 2 256))]
+]]{
+
+Maximum integer representable as unsigned in 8, 16, 32, 64, 128, and 256 bits,
+respectively.
+
+@history[#:added "0.4"]
+}
+
+@deftogether[[
+@defproc[(int8?   [v any/c]) boolean?]
+@defproc[(int16?  [v any/c]) boolean?]
+@defproc[(int32?  [v any/c]) boolean?]
+@defproc[(int64?  [v any/c]) boolean?]
+@defproc[(int128? [v any/c]) boolean?]
+@defproc[(int256? [v any/c]) boolean?]
+]]{
+
+Returns @racket[#t] if @racket[v] is an exact integer representable as signed
+(two's complement) using 8, 16, 32, 64, 128, or 256 bits, respectively;
+otherwise, returns @racket[#f].
+
+@history[#:added "0.4"]
+}
+
+@deftogether[[
+@defproc[(uint8?   [v any/c]) boolean?]
+@defproc[(uint16?  [v any/c]) boolean?]
+@defproc[(uint32?  [v any/c]) boolean?]
+@defproc[(uint64?  [v any/c]) boolean?]
+@defproc[(uint128? [v any/c]) boolean?]
+@defproc[(uint256? [v any/c]) boolean?]
+]]{
+
+Returns @racket[#t] if @racket[v] is an exact nonnegative integer representable
+as unsigned using 8, 16, 32, 64, 128, or 256 bits, respectively; otherwise,
+returns @racket[#f].
+
+@history[#:added "0.4"]
+}
 
 @; ----------------------------------------
 @(close-eval the-eval)
