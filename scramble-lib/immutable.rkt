@@ -2,8 +2,10 @@
 ;; SPDX-License-Identifier: Apache-2.0
 
 #lang racket/base
-(require racket/generic)
-(provide immutable
+(require racket/generic
+         (submod racket/performance-hint begin-encourage-inline))
+(provide immutable-authentic?
+         immutable
          mutable)
 
 ;; Note: mutable/immutable is a shallow property. For example, an immutable
@@ -16,9 +18,13 @@
 ;; 2. Converting only one pair would be useless; converting a list presents
 ;;    problems (eg improper or cyclic lists).
 
+(begin-encourage-inline
+  (define (immutable-authentic? x)
+    (and (immutable? x) (not (impersonator? x)))))
+
 ;; ============================================================
 
-;; immutable : X -> Immutable-NotImpersonated-X
+;; immutable : X -> Immutable-Authentic-X
 ;; If the argument is already immutable (and not impersonated), just
 ;; return it. That is, not guaranteed to get a fresh object.
 
