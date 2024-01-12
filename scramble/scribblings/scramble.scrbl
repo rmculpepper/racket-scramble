@@ -9,6 +9,7 @@
 @include-section["about.scrbl"]
 @include-section["cond.scrbl"]
 @include-section["contract.scrbl"]
+@include-section["decimal.scrbl"]
 @include-section["evt.scrbl"]
 @include-section["function.scrbl"]
 @include-section["immutable.scrbl"]
