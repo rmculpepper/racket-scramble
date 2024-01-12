@@ -1,4 +1,4 @@
-;; Copyright 2023 Ryan Culpepper
+;; Copyright 2023-2024 Ryan Culpepper
 ;; SPDX-License-Identifier: Apache-2.0
 
 #lang racket/base
@@ -6,6 +6,8 @@
          "immutable.rkt")
 (provide vectorof/ic
          hash/ic
+         make-string/ic
+         make-bytes/ic
          string/ic
          bytes/ic
          convert/ic)
@@ -39,17 +41,17 @@
                    (vector-copy! v2 0 v 0 i)))
                (when v2 (vector-set! v2 i elem2)))
              (if v2 (vector->immutable-vector v2) v)]
-            [else (raise-blame-error blame v #:missing-party
-                                     '(expected "vector" given:) v)])))
+            [else (raise-blame-error blame v #:missing-party missing-party
+                                     '(expected: "vector" given: "~e") v)])))
   (make-contract
    #:name name
    #:first-order vector?
    #:late-neg-projection vectorof/ic-late-neg-projection))
 
-(define (-hash/ic who key/c val/c)
-  (define key-ctc (coerce-contract who key/c))
-  (define val-ctc (coerce-contract who val/c))
-  (define name (list who (contract-name key-ctc) (contract-name val-ctc)))
+(define (hash/ic key/c val/c)
+  (define key-ctc (coerce-contract 'hash/ic key/c))
+  (define val-ctc (coerce-contract 'hash/ic val/c))
+  (define name (list 'hash/ic (contract-name key-ctc) (contract-name val-ctc)))
   (define get-key-proj (contract-late-neg-projection key-ctc))
   (define get-val-proj (contract-late-neg-projection val-ctc))
   (define (hash*/ic-late-neg-projection blame) 
@@ -62,43 +64,69 @@
                      #:result (if reuse-val? val h))
                     ([(k v) (in-hash val)])
             (define k2 (key-proj k missing-party))
-            (define v2 (key-proj v missing-party))
+            (define v2 (val-proj v missing-party))
             (values (hash-set h k2 v2)
                     (and reuse-val? (eq? k k2) (eq? v v2))))
           (raise-blame-error blame val #:missing-party missing-party
-                             '(expected "hash" given:) val))))
+                             '(expected: "hash" given: "~e") val))))
   (make-contract
    #:name name
    #:first-order hash?
    #:late-neg-projection hash*/ic-late-neg-projection))
 
-(define (hash/ic key/c value/c)
-  (-hash/ic 'hash/ic key/c value/c))
-
-(define bytes/ic
+(define (make-bytes/ic pred/rx #:name [name0 #f])
+  (define name
+    (cond [name0 name0]
+                [(or (regexp? pred/rx) (byte-regexp? pred/rx))
+                 `(make-bytes/ic ,pred/rx)]
+                [else '(make-bytes/ic ...)]))
   (make-contract
-   #:name 'bytes/ic
+   #:name name
    #:first-order bytes?
    #:late-neg-projection
    (lambda (blame)
      (lambda (v missing-party)
-       (if (bytes? v)
-           (bytes->immutable-bytes v)
-           (raise-blame-error blame v #:missing-party missing-party
-                              '(expected "bytes" given:) v))))))
+       (define (bad v fmt . fmt-vs)
+         (apply raise-blame-error blame v #:missing-party missing-party
+                (append fmt '(given: "~e")) (append fmt-vs (list v))))
+       (unless (bytes? v) (bad v '(expected: "bytes")))
+       (define v* (bytes->immutable-bytes v))
+       (when (or (regexp? pred/rx) (byte-regexp? pred/rx))
+         (unless (regexp-match? pred/rx v*)
+           (bad v* '(expected: "bytes matching ~e") pred/rx)))
+       (when (procedure? pred/rx)
+         (unless (pred/rx v*)
+           (bad v* '(expected: "bytes satisfying ~e") pred/rx)))
+       v*))))
 
-(define string/ic
+(define bytes/ic (make-bytes/ic #f #:name 'bytes/ic))
+
+(define (make-string/ic pred/rx #:name [name0 #f])
+  (define name
+    (cond [name0 name0]
+          [(or (regexp? pred/rx) (byte-regexp? pred/rx))
+           `(make-string/ic ,pred/rx)]
+          [else '(make-string/ic ...)]))
   (make-contract
-   #:name 'string/ic
+   #:name name
    #:first-order string?
    #:late-neg-projection
    (lambda (blame)
      (lambda (v missing-party)
-       (if (string? v)
-           (string->immutable-string v)
-           (raise-blame-error blame v #:missing-party missing-party
-                              '(expected "string" given:) v))))))
+       (define (bad v fmt . fmt-vs)
+         (apply raise-blame-error blame v #:missing-party missing-party
+                (append fmt '(given: "~e")) (append fmt-vs (list v))))
+       (unless (string? v) (bad v '(expected: "string")))
+       (define v* (string->immutable-string v))
+       (when (or (regexp? pred/rx) (byte-regexp? pred/rx))
+         (unless (regexp-match? pred/rx v*)
+           (bad v* '(expected: "string matching ~e") pred/rx)))
+       (when (procedure? pred/rx)
+         (unless (pred/rx v*)
+           (bad v* '(expected: "string satisfying ~e") pred/rx)))
+       v*))))
 
+(define string/ic (make-string/ic #f #:name 'string/ic))
 
 ;; convert/ic : (X -> Y) -> Contract
 ;; PRE: convert should be idempotent
