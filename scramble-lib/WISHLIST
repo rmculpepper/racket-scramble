@@ -1,0 +1,43 @@
+----------------------------------------
+string operations on bytestrings:
+
+eg,
+bytes->number
+format-bytes
+
+bytes-lowercase etc
+bytes-ci=? etc
+
+bytes-{trim,replace,split}  (rx wrappers)
+bytes-{contains?,prefix?,suffix?}
+
+----------------------------------------
+hash
+
+hash-cons, etc
+
+----------------------------------------
+Memoization
+
+#:mode "qvlaQVLA" -- string encoding (eq eqv equal equal-always and weak variants)
+-- at most one weak argument?
+
+----------------------------------------
+Returning
+
+(let/return ([x rhs] ...) body ...)
+=>
+(let ([x rhs] ...) (let () body ... (void)) (values x ...))
+
+let/return let-return
+returning
+
+----------------------------------------
+XML (maybe separate package?)
+
+xexpr extension with prefab structs for PI, comment, etc?
+
+----------------------------------------
+JSON (maybe separate package?)
+
+JSON contracts
