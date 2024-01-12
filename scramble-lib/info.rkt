@@ -5,9 +5,10 @@
 
 ;; pkg info
 
-(define version "0.3")
+(define version "0.4")
 (define collection "scramble")
-(define deps '("base"))
+(define deps
+  '(["base" #:version "8.6"]))
 (define pkg-authors '(ryanc))
 (define license 'Apache-2.0)
 
