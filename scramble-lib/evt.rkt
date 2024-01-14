@@ -1,4 +1,4 @@
-;; Copyright 2021 Ryan Culpepper
+;; Copyright 2021-2024 Ryan Culpepper
 ;; SPDX-License-Identifier: Apache-2.0
 
 #lang racket/base
@@ -14,42 +14,50 @@
 
 ;; ============================================================
 
-;; Thread-safe and break-safe, but not kill-safe: If a thread is
-;; killed in box-evt-set! between acquiring wsema and posting to
-;; rsema, then the box-evt can never become ready.
+;; Thread-safe and break-safe, but not kill-safe: If a thread is killed in
+;; box-evt-set! after successful CAS but before posting to rsema, then threads
+;; already sync'd on box-evt are not woken, but new threads can sync on box-evt.
 
-;; BoxEvt[X] = (box-evt (box (U X #f)) Semaphore Semaphore Evt[X])
-(struct box-evt (b wsema rsema evt)
-  #:property prop:evt (struct-field-index evt))
+(define unset (string->uninterned-symbol "<UNSET>"))
 
+;; BoxEvt[X] = (box-evt (box (U X unset)) Semaphore Semaphore Evt[X])
+(struct box-evt (b rsema)
+  #:property prop:evt
+  (lambda (self)
+    (match-define (box-evt b rsema) self)
+    (wrap-evt (cond [(eq? (unbox b) unset)
+                     (semaphore-peek-evt rsema)]
+                    [else always-evt])
+              (lambda (_e) (unbox b)))))
+
+;; make-box-evt : -> BoxEvt[X]
 (define (make-box-evt)
-  (define b (box #f))
-  (define wsema (make-semaphore 1))
-  (define rsema (make-semaphore 0))
-  (define evt ;; FIXME: wrap or handle?
-    (wrap-evt (semaphore-peek-evt rsema)
-              (lambda (_e) (unbox b))))
-  (box-evt b wsema rsema evt))
+  (box-evt (box unset) (make-semaphore 0)))
 
-;; box-evt-set! : BoxEvt X -> Boolean
+;; box-evt-set! : BoxEvt[X] X -> Boolean
 ;; Returns #t if we set, #f if already set.
-;; Thread-safe and break-safe but not kill-safe.
 (define (box-evt-set! be v)
-  (match-define (box-evt b wsema rsema evt) be)
+  (match-define (box-evt b rsema) be)
   (define be? (break-enabled))
   (break-enabled #f)
-  (cond [(semaphore-try-wait? wsema)
-         ;; Consumed wsema; don't post to wsema when done.
-         (set-box! b v)
+  (cond [(box-cas! b unset v)
          (semaphore-post rsema)
          (break-enabled be?)
          #t]
         [else
          (break-enabled be?)
-         #f]))
+         ;; CAS failed, but real or spurious failure?
+         (cond [(eq? (unbox b) unset)
+                ;; spurious failure, retry
+                (box-evt-set! be v)]
+               [else
+                ;; real failure
+                #f])]))
 
+;; box-evt-ready? : BoxEvt[X] -> Boolean
 (define (box-evt-ready? be)
-  (and (sync/timeout 0 (semaphore-peek-evt (box-evt-rsema be))) #t))
+  (define b (box-evt-b be))
+  (not (eq? (unbox b) unset)))
 
 #;
 (module* atomic-box-evt #f
@@ -61,10 +69,9 @@
   ;; atomic-box-evt-set! : BoxEvt[X] X -> Boolean
   ;; Like box-evt-set! but kill-safe.
   (define (atomic-box-evt-set! be v)
-    (match-define (box-evt b wsema rsema evt) be)
+    (match-define (box-evt b rsema) be)
     (start-atomic)
-    (cond [(semaphore-try-wait? wsema)
-           ;; Consumed wsema; don't post to wsema when done.
+    (cond [(eq? (unbox b) unset)
            (set-box! b v)
            (semaphore-post rsema)
            (end-atomic)
