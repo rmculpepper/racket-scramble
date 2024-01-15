@@ -46,7 +46,7 @@
      (values v (cons rs ws))]
     [(cons '() (? pair? ws))
      (match-define (cons v rs) (reverse ws))
-     (values v (cons rs ws))]
+     (values v (cons rs '()))]
     [(cons '() '())
      (error 'dequeue "empty queue")]))
 
