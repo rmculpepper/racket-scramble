@@ -1,12 +1,17 @@
 #lang racket/base
 (require racket/match
-         racket/generic)
+         racket/contract)
 (provide light-async-channel?
          make-light-async-channel
-         light-async-channel-put
-         light-async-channel-get-evt
-         light-async-channel-get
-         light-async-channel-try-get)
+         (contract-out
+          [light-async-channel-put
+           (-> light-async-channel? any/c any)]
+          [light-async-channel-get-evt
+           (-> light-async-channel? evt?)]
+          [light-async-channel-get
+           (-> light-async-channel? any)]
+          [light-async-channel-try-get
+           (-> light-async-channel? any)]))
 
 ;; ============================================================
 
