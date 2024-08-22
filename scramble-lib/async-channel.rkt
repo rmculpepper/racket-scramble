@@ -51,6 +51,11 @@
     [(cons '() '())
      (error 'dequeue "empty queue")]))
 
+;; queue-count : (Q X) -> Nat
+(define (queue-count q)
+  (match q
+    [(cons rs ws) (+ (length rs) (length ws))]))
+
 ;; cas-dequeue : (box (Q X)) -> X
 ;; PRE: box's queue is not empty
 (define (cas-dequeue qb)
@@ -78,20 +83,31 @@
 ;;   before posting to wsema, then wsema undercounds the available capacity. That
 ;;   is, writes to the queue will block even when the queue is under the limit.
 
-;; LAC[X] = (light-async-channel (box Q[X]) Semaphore Semaphore/#f)
+;; LAC[X] = (light-async-channel (box Q[X]) Semaphore Semaphore/#f Nat/#f)
 ;; Invariants:
 ;; - ReadInv: rsema's counter = number of elements in queue
 ;; - WriteInv: wsema's counter = remaining capacity (limit - number of elements)
 ;; - WeakInv: rsema's counter <= number of elements in queue
 ;;            wsema's counter <= remaining capacity (limit - number of elements)
-(struct light-async-channel (b rsema wsema)
+(struct light-async-channel (b rsema wsema limit)
   #:property prop:evt (lambda (self) (light-async-channel-get-evt self)))
 
 ;; make-light-async-channel : -> LAC[X]
 (define (make-light-async-channel [limit #f])
   (light-async-channel (box empty-queue)
                        (make-semaphore 0)
-                       (and limit (make-semaphore limit))))
+                       (and limit (make-semaphore limit))
+                       limit))
+
+;; light-async-channel-copy : LAC[X] -> LAC[X]
+;; Makes a copy, repairing invariants if necessary.
+(define (light-async-channel-copy lac)
+  (match lac
+    [(light-async-channel (box q) _ _ limit)
+     (define n (queue-count q))
+     (define rsema (make-semaphore n))
+     (define wsema (and limit (make-semaphore (- limit n))))
+     (light-async-channel (box q) rsema wsema limit)]))
 
 ;; light-async-channel-put-evt : LAC[X] X -> Void
 (define (light-async-channel-put-evt lac value)
@@ -104,12 +120,15 @@
               (semaphore-post rsema))))
 
 ;; light-async-channel-put : LAC[X] X -> Void
-(define (light-async-channel-put lac value)
+(define (light-async-channel-put lac value
+                                 #:enable-break? [enable-break? #f])
   (match-define (light-async-channel b rsema wsema) lac)
   (define be? (break-enabled))
   (parameterize-break #f
     (when wsema
-      (if be? (semaphore-wait/enable-break wsema) (semaphore-wait wsema)))
+      (if (or be? enable-break?)
+          (semaphore-wait/enable-break wsema)
+          (semaphore-wait wsema)))
     ;; <-- WriteInv does not hold here (if wsema present)
     (cas-enqueue b value)
     ;; <-- ReadInv does not hold here
@@ -127,11 +146,14 @@
                 (when wsema (semaphore-post wsema))))))
 
 ;; light-async-channel-get : LAC[X] -> X
-(define (light-async-channel-get lac)
+(define (light-async-channel-get lac
+                                 #:enable-break? [enable-break? #f])
   (match-define (light-async-channel b rsema wsema) lac)
   (define be? (break-enabled))
   (parameterize-break #f
-    (if be? (semaphore-wait/enable-break sema) (semaphore-wait rsema))
+    (if (or be? enable-break?)
+        (semaphore-wait/enable-break sema)
+        (semaphore-wait rsema))
     ;; <-- ReadInv does not hold here
     (begin0 (cas-dequeue b)
       ;; <-- WriteInv does not hold here (if wsema present)
