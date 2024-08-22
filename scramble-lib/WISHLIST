@@ -23,6 +23,11 @@ Memoization
 -- at most one weak argument?
 
 ----------------------------------------
+Relations
+
+see asn1 code for examples
+
+----------------------------------------
 Returning
 
 (let/return ([x rhs] ...) body ...)
