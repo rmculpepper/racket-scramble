@@ -24,6 +24,15 @@ Equivalent to @racket[(and (pair? v) (null? (cdr v)))].
 ]
 }
 
+@defproc[(append-reverse [xs list?] [ys list?]) list?]{
+
+Equivalent to @racket[(append (reverse xs) ys)].
+
+@examples[#:eval the-eval
+(append-reverse '(1 2 3) '(a b c))
+]
+
+@history[#:added "0.4"]}
 
 @; ----------------------------------------
 @(close-eval the-eval)
