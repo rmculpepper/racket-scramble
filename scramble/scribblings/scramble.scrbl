@@ -7,6 +7,7 @@
 @; ----------------------------------------
 
 @include-section["about.scrbl"]
+@include-section["async-channel.scrbl"]
 @include-section["cond.scrbl"]
 @include-section["contract.scrbl"]
 @include-section["decimal.scrbl"]
