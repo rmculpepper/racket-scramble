@@ -18,6 +18,7 @@
 @include-section["net.scrbl"]
 @include-section["number.scrbl"]
 @include-section["regexp.scrbl"]
+@include-section["relation.scrbl"]
 @include-section["result.scrbl"]
 @include-section["slice.scrbl"]
 @include-section["struct.scrbl"]
