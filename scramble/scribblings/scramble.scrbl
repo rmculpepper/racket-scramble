@@ -13,6 +13,7 @@
 @include-section["evt.scrbl"]
 @include-section["function.scrbl"]
 @include-section["immutable.scrbl"]
+@include-section["let-return.scrbl"]
 @include-section["list.scrbl"]
 @include-section["net.scrbl"]
 @include-section["number.scrbl"]
