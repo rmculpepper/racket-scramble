@@ -14,6 +14,7 @@
 @include-section["function.scrbl"]
 @include-section["immutable.scrbl"]
 @include-section["list.scrbl"]
+@include-section["net.scrbl"]
 @include-section["number.scrbl"]
 @include-section["regexp.scrbl"]
 @include-section["result.scrbl"]
