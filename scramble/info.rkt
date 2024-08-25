@@ -19,4 +19,4 @@
 
 (define name "scramble")
 (define scribblings
-  '(["scribblings/scramble.scrbl" (#;multi-page)]))
+  '(["scribblings/scramble.scrbl" (multi-page)]))

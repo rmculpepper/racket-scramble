@@ -4,6 +4,8 @@
 @title{scramble: Assorted Utility Libraries}
 @author[@author+email["Ryan Culpepper" "ryanc@racket-lang.org"]]
 
+@(local-table-of-contents)
+
 @; ----------------------------------------
 
 @include-section["about.scrbl"]
