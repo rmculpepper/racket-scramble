@@ -23,6 +23,9 @@
    ['b 1]
    ['c 2]))
 
+(define dynamic-rel
+  (make-relation 'dynamic '(x y) '((a 1) (b 1) (c 2))))
+
 (define (test-rel rel)
   (check-equal? (relation-heading rel) '#(x y))
   (check-equal? (relation-tuples rel) '#(#(a 1) #(b 1) #(c 2)))
@@ -50,3 +53,4 @@
 
 (test-rel rel-with-lookups)
 (test-rel rel-no-lookups)
+(test-rel dynamic-rel)

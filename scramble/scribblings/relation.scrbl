@@ -76,8 +76,9 @@ food
 ]}
 
 @defproc[(make-relation [name (or/c #f symbol?)]
-                        [heading (vectorof symbol?)]
-                        [tuples (vectorof vector?)])
+                        [heading (or/c (listof symbol?) (vectorof symbol?))]
+                        [tuples (let ([tuple/c (or/c list? vector?)])
+                                  (or/c (listof tuple/c) (vectorof tuple/c)))])
          relation?]{
 
 Creates a relation using the given @racket[name], @racket[heading], and

@@ -7,7 +7,7 @@
          racket/match
          racket/sequence
          racket/list
-         "contract.rkt")
+         "immutable.rkt")
 (provide relation?
          relation-heading
          relation-tuples
@@ -15,7 +15,10 @@
          (contract-out
           #:unprotected-submodule unchecked
           [make-relation
-           (-> (or/c #f symbol?) (vectorof/ic symbol?) (vectorof/ic vector?)
+           (-> (or/c #f symbol?)
+               (or/c (listof symbol?) (vectorof symbol?))
+               (let ([tuple/c (or/c list? vector?)])
+                 (or/c (listof tuple/c) (vectorof tuple/c)))
                relation?)]
           [relation-add-lookup
            (-> relation? symbol? boolean?
@@ -82,12 +85,34 @@
                        (list i.unique? ...))]))
 
 (define (build-relation name heading tuples lu-fields lu-types)
-  (for/fold ([rel (make-relation name heading tuples)])
+  (for/fold ([rel (make-relation* name heading tuples)])
             ([lu-field (in-list lu-fields)]
              [lu-unique? (in-list lu-types)])
     (relation-add-lookup rel lu-field lu-unique? #:who 'relation)))
 
-(define (make-relation name heading tuples)
+(define (make-relation name heading0 tuples0)
+  (define (bad c v) (raise-argument-error 'make-relation c v))
+  (define (bad-tuples)
+    (bad "(or/c (listof (or/c list? vector?)) (vectorof (or/c list? vector?)))" tuples0))
+  (define (convert-lv t)
+    (cond [(vector? t) (immutable t)]
+          [(list? t) (apply vector-immutable t)]
+          [else #f]))
+  (define heading
+    (or (convert-lv heading0)
+        (bad "(or/c (listof symbol?) (vectorof symbol?))" heading0)))
+  (define tuples
+    (apply vector-immutable
+           (cond [(vector? tuples0)
+                  (for/list ([t (in-vector tuples0)])
+                    (or (convert-lv t) (bad-tuples)))]
+                 [(list? tuples0)
+                  (for/list ([t (in-list tuples0)])
+                    (or (convert-lv t) (bad-tuples)))]
+                 [else (bad-tuples)])))
+  (make-relation* name heading tuples))
+
+(define (make-relation* name heading tuples)
   (define nfields (vector-length heading))
   ;; check heading
   (for ([f (in-vector heading)])
