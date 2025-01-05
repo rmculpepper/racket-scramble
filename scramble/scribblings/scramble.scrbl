@@ -28,5 +28,6 @@
 @; ----------------------------------------
 
 @include-section["class.scrbl"]
+@include-section["datum-to-expr.scrbl"]
 @include-section["inject-syntax.scrbl"]
 @include-section["struct-info.scrbl"]
