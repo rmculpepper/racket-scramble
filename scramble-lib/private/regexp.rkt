@@ -24,6 +24,7 @@
   (struct re:matched? (n) #:prefab)
   (struct re:charset (isetc) #:prefab)
   (struct re:uniprop (sat? prop) #:prefab)
+  (struct re:any () #:prefab)
 
   (define (lookahead? v)
     (or (look:match? v) (look:match-preceding? v)))
@@ -165,6 +166,7 @@
          [else (format "(~a)" (emit-regexp m re))])]
       [(re:charset isetc)
        (emit-charset m isetc)]
+      [(re:any) "."]
       [(re:^) "^"]
       [(re:$) "$"]
       [(re:mode (? string? modes) re)
@@ -312,7 +314,7 @@
 
   (define-syntax-class RE
     #:attributes (ast)
-    #:datum-literals (inject or cat repeat * + ? report ^ $ mode test unicode not chars)
+    #:datum-literals (inject or cat repeat * + ? report any ^ $ mode test unicode not chars)
     (pattern (~and :RE-name ~!))
     (pattern s:string
              #:attr ast (string->re-ast (syntax->datum #'s)))
@@ -342,6 +344,7 @@
              #:attr ast (re:repeat (datum re.ast) 0 1))
     (pattern (report re:RE)
              #:attr ast (re:report (datum re.ast)))
+    (pattern (any) #:attr ast (re:any))
     (pattern ^ #:attr ast (re:^))
     (pattern $ #:attr ast (re:$))
     (pattern (mode modes:string re:RE)
