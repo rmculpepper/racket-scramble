@@ -94,15 +94,12 @@
            (rename-in data/integer-set [count iset:count] [foldr iset:foldr]))
   (provide (all-defined-out))
 
-  ;; Note: currently only pregexp generation is supported.  Conversion to regexp
-  ;; form is impossible for some REs due to (report _). For example:
+  ;; Note: currently only pregexp generation is fully supported.  Conversion to
+  ;; regexp form is impossible for some REs due to (report _). For example:
   ;;   (repeat (report "a") 2 +inf.0) != #rx"(a)(a)+"
   ;; because the number of reports has changed (1 vs 2).
 
   ;; Mode = 'px | 'rx | 'rx/no-report
-
-  (define (emit-px re) (emit-regexp 'px re))
-  (define (emit-rx re) (emit-regexp 'rx re))
 
   (define (emit-regexp m re) ;; emits regexp
     (match re
