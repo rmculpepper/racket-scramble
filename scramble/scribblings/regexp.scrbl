@@ -3,7 +3,7 @@
           (for-syntax racket/base)
           (only-in scribble/racket make-element-id-transformer)
           (for-label (except-in racket/base or not * +)
-                     racket/contract
+                     (except-in racket/contract any)
                      scramble/regexp))
 
 @(begin
@@ -23,7 +23,7 @@ expressions. All literals in the grammar are recognized as symbols, not by
 binding.
 
 @racketgrammar*[
-#:literals (or cat repeat * + ? report ^ $ mode test unicode chars not inject
+#:literals (or cat repeat * + ? report any ^ $ mode test unicode chars not inject
                      union intersect complement look look-back matched?)
  [RE (code:line RE-id)
      (code:line (or RE ...+)                 (code:comment "like <RE>|<RE>"))
@@ -35,6 +35,7 @@ binding.
      (code:line (+ RE)                       (code:comment "like <RE>+"))
      (code:line (? RE)                       (code:comment "like <RE>?"))
      (code:line (report RE)                  (code:comment "like (<RE>)"))
+     (code:line (any)                        (code:comment "like ."))
      (code:line ^                            (code:comment "like ^"))
      (code:line $                            (code:comment "like $"))
      (code:line (mode modes-string RE)       (code:comment "like (?<modes>:<RE>)"))
@@ -61,6 +62,8 @@ binding.
        (code:line (look (not RE))              (code:comment "like (?!<RE>)"))
        (code:line (look-back RE)               (code:comment "like (?<=<RE>)"))
        (code:line (look-back (not RE))         (code:comment "like (?<!<RE>)"))]]
+
+@history[#:changed "0.5" @elem{Added @racket[any].}]
 
 The forms of @svar[RE] should mostly be self-explanatory, but a few of them
 deserve additional comments:
@@ -129,18 +132,25 @@ within a higher-precedence operator. For example:
 (px (* (inject "[ab]")))
 ]}
 
-@defform[(px part-RE ...)]{
+@defform[(px maybe-mode part-RE ...)
+         #:grammar ([maybe-mode (code:line) #:byte])]{
 
-Converts the @svar[RE] formed by @racket[(cat part-RE ...)] into a
-@racket[pregexp] literal.
+Converts the @svar[RE] formed by @racket[(cat part-RE ...)] into a @tech[#:doc
+'(lib "scribblings/reference/reference.scrbl")]{regexp value}. If the
+@racket[#:byte] keyword is used, then the literal is created with
+@racket[byte-pregexp]; otherwise, it is created with @racket[pregexp].
 
 The generation of the @racket[pregexp] literal takes precedence into account and
 inserts @litchar{(?:}@tt{_}@litchar{)} wrappers as necessary. For example:
 @examples[#:eval the-eval #:label #f
 (px (cat "A" (or "BB" "CCC")))
-]}
+(px #:byte (repeat "BB" 3))
+]
 
-@defform[(rx part-RE ...)]{
+@history[#:changed "0.5" @elem{Added @racket[#:byte] mode.}]}
+
+@defform[(rx part-RE ...)
+         #:grammar ([maybe-mode (code:line) #:byte])]{
 
 Like @racket[px], but produces a @racket[regexp] literal instead. Not all
 @svar[RE] features can be expressed as a @racket[regexp]-style regular
@@ -158,22 +168,32 @@ support it.
 (eval:error (rx (repeat (report "a") 2 5)))
 (rx (repeat (report "a") 1 +inf.0))
 (rx (+ (chars alpha digit)))
-]}
+]
 
-@defform[(define-RE name rhs-RE)]{
+@history[#:changed "0.5" @elem{Added @racket[#:byte] mode.}]}
+}
+
+@defform[(define-RE name maybe-mode rhs-RE)
+         #:grammar ([maybe-mode (code:line) #:byte])]{
 
 Defines @racket[name] as a name bound to a compile-time regular expression;
 @racket[name] can be used in @svar[RE] forms as an abbreviation to stand for
 @racket[rhs-RE].
 
 If @racket[name] is used as an expression, it expands to @svar[rhs-RE]'s
-corresponding @racket[pregexp] literal.
+corresponding regular-expression literal. If the @racket[#:byte] option is
+present, then a @racket[byte-pregexp] literal is produced; otherwise, a
+@racket[pregexp] literal is produced. The mode declaration does not affect uses
+of @racket[name] within other @svar[RE] forms.
 
 @examples[#:eval the-eval
 (define-RE As (* "A"))
-(define-RE BBs (* "BB"))
+As
+(define-RE BBs #:byte (* "BB"))
 BBs
 (px (or As BBs))
-]}
+]
+
+@history[#:changed "0.5" @elem{Added @racket[#:byte] mode.}]}
 
 @(close-eval the-eval)
