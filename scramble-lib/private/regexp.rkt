@@ -310,14 +310,6 @@
       (define px (RE-binding-px self))
       ((make-variable-like-transformer (datum->syntax id px)) id)))
 
-  (define (check-RE m ast)
-    (define ((fail s) err)
-      (define what (case m [(px) 'pregexp] [else 'regexp]))
-      (wrong-syntax #f "~a\n  generated ~a: ~a" err what s))
-    (define s (emit-regexp m ast))
-    (define x (case m [(px) (pregexp s (fail s))] [else (regexp s (fail s))]))
-    (values ast x))
-
   (define-syntax-class RE
     #:attributes (ast)
     #:datum-literals (inject or cat repeat * + ? report ^ $ mode test unicode not chars)
