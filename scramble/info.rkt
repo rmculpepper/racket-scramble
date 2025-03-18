@@ -13,6 +13,7 @@
 (define build-deps
   '("racket-doc"
     "scribble-lib"))
+(define pkg-authors '(ryanc))
 
 ;; ========================================
 ;; collect info
