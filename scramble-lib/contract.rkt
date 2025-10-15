@@ -1,11 +1,13 @@
-;; Copyright 2023-2024 Ryan Culpepper
+;; Copyright 2023-2025 Ryan Culpepper
 ;; SPDX-License-Identifier: Apache-2.0
 
 #lang racket/base
 (require racket/contract
+         racket/match
          "immutable.rkt")
 (provide vectorof/ic
          hash/ic
+         hash-record/ic
          make-string/ic
          make-bytes/ic
          string/ic
@@ -54,7 +56,7 @@
   (define name (list 'hash/ic (contract-name key-ctc) (contract-name val-ctc)))
   (define get-key-proj (contract-late-neg-projection key-ctc))
   (define get-val-proj (contract-late-neg-projection val-ctc))
-  (define (hash*/ic-late-neg-projection blame) 
+  (define (hash/ic-late-neg-projection blame)
     (define key-proj (get-key-proj (blame-add-context blame "a key of")))
     (define val-proj (get-val-proj (blame-add-context blame "a value of")))
     (lambda (val missing-party)
@@ -72,7 +74,72 @@
   (make-contract
    #:name name
    #:first-order hash?
-   #:late-neg-projection hash*/ic-late-neg-projection))
+   #:late-neg-projection hash/ic-late-neg-projection))
+
+(define (hash-record/ic key=>value/c
+                        #:name [name '(hash-record/ic ....)]
+                        #:other [get-other/c #f]
+                        #:required [required 'all])
+  (define who 'hash-record/ic)
+  (define key=>ctx+proj
+    (for/fold ([h (hash-copy-clear key=>value/c #:kind 'immutable)])
+              ([(key value/c) (in-hash key=>value/c)])
+      (define key-ctx (string->immutable-string (format "the ~e field of" key)))
+      (define proj (get/build-late-neg-projection (coerce-contract who value/c)))
+      (hash-set h key (cons key-ctx proj))))
+  (unless (or (eq? get-other/c #f)
+              (and (procedure? get-other/c) (procedure-arity-includes? get-other/c 1)))
+    (raise-argument-error who "(or/c #f (-> any contract?))" get-other/c))
+  (unless (or (eq? required 'all) (list? required))
+    (raise-argument-error who "(or/c 'all list?)" required))
+  (when (list? required)
+    (for ([required-key (in-list required)])
+      (unless (hash-has-key? key=>ctx+proj required-key)
+        (raise-arguments-error who "required key is not a member of keys"
+                               "required key" required-key
+                               "keys" (hash-keys key=>ctx+proj)))))
+  (define required-keys (if (list? required) required (hash-keys key=>value/c)))
+  (define (hash-record/ic-late-neg-projection blame)
+    (define key=>proj
+      (for/fold ([h (hash-copy-clear key=>ctx+proj #:kind 'immutable)])
+                ([(key ctx+proj) (in-hash key=>ctx+proj)])
+        (match-define (cons ctx proj) ctx+proj)
+        (hash-set h key (proj (blame-add-context blame ctx)))))
+    (lambda (val missing-party)
+      (cond [(hash? val)
+             (define h
+               (cond [(and (immutable? val) (not (impersonator? val))) val]
+                     [else (hash-map/copy val values #:kind 'immutable)]))
+             (define checked-h
+               (for/fold ([h h]) ([(key keyval) (in-hash h)])
+                 (cond [(hash-ref key=>proj key #f)
+                        => (lambda (proj)
+                             (define keyval* (proj keyval missing-party))
+                             (if (eq? keyval* keyval) h (hash-set h key keyval*)))]
+                       [(and get-other/c (get-other/c key))
+                        => (lambda (keyval/c)
+                             (cond [(eq? keyval/c any/c) h]
+                                   [else
+                                    (define keyval-ctc (coerce-contract who keyval/c))
+                                    (define proj (get/build-late-neg-projection keyval-ctc))
+                                    (define key-ctx (format "the ~e field of" key))
+                                    (define blame* (blame-add-context blame key-ctx))
+                                    (define keyval* ((proj blame*) keyval missing-party))
+                                    (if (eq? keyval* keyval) h (hash-set h key keyval*))]))]
+                       [else h])))
+             (for ([key (in-list required-keys)])
+               (unless (hash-has-key? checked-h key)
+                 (raise-blame-error blame val #:missing-party missing-party
+                                    '(expected: "hash with ~e key" given: "~e")
+                                    key checked-h)))
+             checked-h]
+            [else
+             (raise-blame-error blame val #:missing-party missing-party
+                                '(expected: "hash" given: "~e") val)])))
+  (make-contract
+   #:name name
+   #:first-order hash?
+   #:late-neg-projection hash-record/ic-late-neg-projection))
 
 (define (make-bytes/ic pred/rx #:name [name0 #f])
   (define name

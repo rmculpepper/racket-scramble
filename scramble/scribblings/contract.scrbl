@@ -15,12 +15,12 @@
 
 @deftogether[[
 @defproc[(vectorof/ic [elem/c contract?])
-         contract?]
+         impersonator-contract?]
 @defproc[(hash/ic [key/c contract?]
                   [value/c contract?])
-         contract?]
-@defthing[string/ic contract?]
-@defthing[bytes/ic contract?]
+         impersonator-contract?]
+@defthing[string/ic impersonator-contract?]
+@defthing[bytes/ic impersonator-contract?]
 ]]{
 
 Like the contracts @racket[(vectorof elem/c)], @racket[(hash/c key/c elem/c)],
@@ -60,11 +60,42 @@ as the original value.
 ]
 }
 
+@defproc[(hash-record/ic [key=>value/c (hash/c any/c contract?)]
+                         [#:name name any/c '(hash-record/ic ....)]
+                         [#:other get-other/c (-> any/c contract?) (lambda (_key) any/c)]
+                         [#:required required (or/c 'all list?) 'all])
+         impersonator-contract?]{
+
+Produces a contract that accepts hashes, treating them like records and
+enforcing specific contracts on each of their fields. Specifically, when the
+contract is applied to a hash, for each @racket[_key] and @racket[_value] in the
+hash, the contract associated with @racket[_key] by @racket[key=>value/c] is
+applied to @racket[value]. If @racket[key=>value/c] has no entry for
+@racket[_key], then the value contract is obtained from @racket[(get-other/c
+_key)] instead. The final result of the contract's projection is immutable and
+authentic (not a chaperone or impersonator).
+
+If @racket[required] is @racket['all], then every key of @racket[key=>value/c]
+is required. If @racket[required] is a list, each element must be a key of
+@racket[key=>value/c], and only those keys are considered required.
+
+@examples[#:eval the-eval #:label #f
+(define point/c (hash-record/ic (hash 'x real? 'y real?)))
+(define/contract point-taxi-dist
+  (-> point/c real?)
+  (lambda (p) (+ (abs (hash-ref p 'x)) (abs (hash-ref p 'y)))))
+(point-taxi-dist (hash 'x 5 'y 3))
+(point-taxi-dist (hash 'x 5 'y 3 'elevation -10))
+(eval:error (point-taxi-dist (hash 'x 5 'y 'north)))
+(eval:error (point-taxi-dist (hash 'x 5)))
+]
+
+@history[#:added "0.6"]}
 
 @defproc[(convert/ic [convert (-> any/c any/c)]
                      [#:name name any/c '(convert/ic ....)]
                      [#:exn->lines exn->lines (lambda (exn) ....)])
-         contract?]{
+         impersonator-contract?]{
 
 Produces a contract that applies @racket[convert] to the given value. If the
 call to @racket[convert] produces a value, that is the value produced by the
