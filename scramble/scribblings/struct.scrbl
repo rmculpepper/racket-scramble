@@ -1,6 +1,6 @@
 #lang scribble/manual
 @(require scribble/example
-          (for-label racket/base racket/contract scramble/struct))
+          (for-label racket/base racket/contract racket/struct scramble/struct))
 
 @(begin
   (define the-eval (make-base-eval))
@@ -14,14 +14,15 @@
 
 @defthing[prop:auto-equal+hash
           (struct-type-property/c
-           (or/c #t (listof exact-nonnegative-integer?)))]{
+           (or/c #t 'all (listof exact-nonnegative-integer?)))]{
 
 Property that automatically adds an implementation of the
 @racket[prop:equal+hash] property. If the property value is @racket[#t], the
 automatically generated equality predicate and hash code functions use all of
-the struct type's fields. If the property value is a list, then the equality
-predicate and hash code functions use only the fields with the indexes in the
-list.
+the struct type's constructor-supplied fields. If the property value is
+@racket['all], then all of the fields are used, both constructor-supplied and
+automatic. If the property value is a list, then the equality predicate and hash
+code functions use only the fields with the indexes in the list.
 
 In addition to the indicated fields, the hash code function also depends on a
 random seed and the name of the struct type. A new random seed is generated for
@@ -63,6 +64,32 @@ use both of @racket[point]'s fields.
        [else @elem{@emph{This example does not currently work on Racket BC.}}])
 }
 
+
+@defthing[prop:auto-custom-write
+          (struct-type-property/c
+           (or/c #t (listof exact-nonnegative-integer?)))]{
+
+Property that automatically adds an implementation of the
+@racket[prop:custom-write] property using
+@racket[make-constructor-style-printer].  If the property value is @racket[#t],
+the printer prints all of the struct type's constructor-supplied fields. If the
+property value is @racket['all], then it prints all of the fields, both
+constructor-supplied and automatic. If the property value is a list, then only
+the fields with the indexes in the list are printed.
+
+If @racket[prop:auto-custom-write] is attached to a struct type that has a super
+struct type and if that super struct type also has the
+@racket[prop:auto-custom-write] property, then the new printer includes the
+super-type's fields.
+
+@examples[#:eval the-eval #:label #f
+(struct point (x y) #:property prop:auto-custom-write #t)
+(point 1 2)
+(struct point3 point (z) #:property prop:auto-custom-write #t)
+(point3 1 2 3)
+]
+
+@history[#:added "0.6"]}
 
 @; ----------------------------------------
 @(close-eval the-eval)
