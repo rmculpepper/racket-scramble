@@ -40,9 +40,7 @@
 
 (define (hash->immutable-hash h)
   (cond [(and (immutable? h) (not (impersonator? h))) h]
-        [else
-         (define init-h (hash-copy-clear h #:kind 'immutable))
-         (for/fold ([hh init-h]) ([(k v) (in-hash h)]) (hash-set hh k v))]))
+        [else (hash-map/copy h values #:kind 'immutable)]))
 
 (define (box->immutable-box b)
   (cond [(and (immutable? b) (not (impersonator? b))) b]
