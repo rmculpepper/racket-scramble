@@ -5,7 +5,7 @@
 
 ;; pkg info
 
-(define version "0.5")
+(define version "0.6")
 (define collection "scramble")
 (define deps
   '(["base" #:version "8.6"]))
