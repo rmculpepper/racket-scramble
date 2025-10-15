@@ -4,11 +4,15 @@
 #lang racket/base
 (require racket/contract/base
          racket/match
+         racket/struct
          racket/list)
 (provide (contract-out
           [prop:auto-equal+hash
            (struct-type-property/c
-            (or/c #t (listof exact-nonnegative-integer?)))]))
+            (or/c #t 'all (listof exact-nonnegative-integer?)))]
+          [prop:auto-custom-write
+           (struct-type-property/c
+            (or/c #t 'all (listof exact-nonnegative-integer?)))]))
 
 ;; References:
 ;; - /racket/racket/src/cs/rumble/hash-code.ss
@@ -116,14 +120,11 @@
              [else (values #f #f #f)]))
      (define fields
        (cond [(eq? v #t)
+              (range inits)]
+             [(eq? v 'all)
               (range (+ inits autos))]
              [(list? v)
-              (for ([elem (in-list v)])
-                (unless (and (exact-nonnegative-integer? elem) (< elem (+ inits autos)))
-                  (error who
-                         "struct field index out of range\n  given: ~e\n  fields: ~e\n  struct: ~.s"
-                         elem (+ inits autos) name)))
-              v]
+              (begin (check-struct-indexes who v (+ inits autos) name) v)]
              [else
               (error who "bad property value for struct type\n  expected: ~s\n  struct: ~.s"
                      '(or/c #t (listof exact-nonnegative-integer?))
@@ -149,3 +150,50 @@
                ([field (in-list fields)])
        (fh-update h (recur (ref this field))))))
   (list equal-proc hash-proc hash-proc2))
+
+(define (check-struct-indexes who v field-count name)
+  (for ([elem (in-list v)])
+    (unless (and (exact-nonnegative-integer? elem) (< elem field-count))
+      (error who
+             "struct field index out of range\n  given: ~e\n  fields: ~e\n  struct: ~.s"
+             elem field-count name))))
+
+;; ----------------------------------------
+
+;; (auto-custom-write Symbol (Listof Accessor) (Listof (Listof Nat)))
+(struct auto-custom-write (name refs fieldss))
+
+(define-values (prop:auto-custom-write has-auto-custom-write? auto-custom-write-ref)
+  (make-struct-type-property
+   'auto-custom-write
+   (lambda (v info)
+     (define who 'prop:auto-custom-write)
+     (match-define (list name inits autos ref mut imms super skipped?) info)
+     (define-values (super-refs super-fieldss)
+       (cond [(and super (has-auto-custom-write? super))
+              (match (auto-custom-write-ref super)
+                [(auto-custom-write _ refs fieldss) (values refs fieldss)])]
+             [else (values null null)]))
+     (define fields
+       (cond [(eq? v #t)
+              (range inits)]
+             [(eq? v 'all)
+              (range (+ inits autos))]
+             [(list? v)
+              (begin (check-struct-indexes who v (+ inits autos) name) v)]
+             [else
+              (error who "bad property value for struct type\n  expected: ~s\n  struct: ~.s"
+                     '(or/c #t (listof exact-nonnegative-integer?))
+                     name)]))
+     (auto-custom-write name (cons ref super-refs) (cons fields super-fieldss)))
+   (list (cons prop:custom-write (lambda (v) (make-custom-write v))))))
+
+(define (make-custom-write propval)
+  (match-define (auto-custom-write cname refs fieldss) propval)
+  (define (get-components self)
+    (for/list ([ref (in-list (reverse refs))]
+               [fields (in-list (reverse fieldss))]
+               #:when #t
+               [field (in-list fields)])
+      (ref self field)))
+  (make-constructor-style-printer (lambda (self) cname) get-components))
