@@ -4,6 +4,7 @@
 ;; pkg info
 
 (define collection "scramble")
+(define license 'Apache-2.0)
 (define deps
   '("base"
     "scramble-lib"

@@ -10,7 +10,6 @@
 (define deps
   '(["base" #:version "8.6"]))
 (define pkg-authors '(ryanc))
-(define license 'Apache-2.0)
 
 ;; collection info
 
