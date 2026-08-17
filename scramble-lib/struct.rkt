@@ -1,11 +1,8 @@
-;; Copyright 2021-2026 Ryan Culpepper
+;; Copyright 2021 Ryan Culpepper
 ;; SPDX-License-Identifier: Apache-2.0
 
 #lang racket/base
-(require (for-syntax racket/base
-                     racket/syntax
-                     racket/struct-info)
-         racket/contract/base
+(require racket/contract/base
          racket/match
          racket/struct
          racket/list)
@@ -15,8 +12,7 @@
             (or/c #t 'all (listof exact-nonnegative-integer?)))]
           [prop:auto-custom-write
            (struct-type-property/c
-            (or/c #t 'all (listof exact-nonnegative-integer?)))])
-         define-struct-abbrevs)
+            (or/c #t 'all (listof exact-nonnegative-integer?)))]))
 
 ;; References:
 ;; - /racket/racket/src/cs/rumble/hash-code.ss
@@ -201,50 +197,3 @@
                [field (in-list fields)])
       (ref self field)))
   (make-constructor-style-printer (lambda (self) cname) get-components))
-
-
-;; ============================================================
-
-(define-syntax (define-struct-abbrevs stx)
-  (syntax-case stx ()
-    [(_ sname)
-     (with-disappeared-uses
-       (define (bad-sname)
-         (raise-syntax-error #f "named defined as struct type" stx))
-       (unless (identifier? #'sname) (bad-sname))
-       (define info (syntax-local-value/record #'sname struct-info?))
-       (unless info (bad-sname))
-       (define infolist (extract-struct-info info))
-       (define accessors (list-ref infolist 3))
-       (define mutators (list-ref infolist 4))
-       (define fields
-         (let loop ([info info] [infolist infolist])
-           (cond [(struct-field-info? info)
-                  (define immediate-fields
-                    (struct-field-info-list info))
-                  (define super-name
-                    (list-ref infolist 5))
-                  (define super-info
-                    (and (identifier? super-name)
-                         (syntax-local-value super-name)))
-                  (define super-infolist
-                    (and super-info (extract-struct-info super-info)))
-                  (append immediate-fields
-                          (loop super-info super-infolist))]
-                 [else null])))
-       (define/with-syntax ((getter accessor) ...)
-         (for/list ([accessor (in-list accessors)]
-                    [field (in-list fields)]
-                    #:when (identifier? accessor))
-           (list (format-id stx ".~a" field) accessor)))
-       (define/with-syntax ((setter mutator) ...)
-         (for/list ([mutator (in-list mutators)]
-                    [field (in-list fields)]
-                    #:when (identifier? mutator))
-           (list (format-id stx ".~a-set!" field) mutator)))
-       #'(begin (define-syntax getter
-                  (make-rename-transformer (quote-syntax accessor)))
-                ...
-                (define-syntax setter
-                  (make-rename-transformer (quote-syntax mutator)))
-                ...))]))
